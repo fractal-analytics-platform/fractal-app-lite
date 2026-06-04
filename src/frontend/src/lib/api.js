@@ -69,10 +69,6 @@ export function setDataset(dataset) {
 	return post('/api/dataset', { dataset });
 }
 
-export function createDataset({ name, zarr_dir }) {
-	return post('/api/dataset/create', { name, zarr_dir });
-}
-
 export function addDatasetStore(path) {
 	return post('/api/dataset/add-store', { path });
 }
@@ -159,18 +155,22 @@ export function importWorkflowFractal(path) {
 	return post('/api/workflow/import-fractal', { path });
 }
 
-// --- Session -------------------------------------------------------------- //
+// --- Project -------------------------------------------------------------- //
 
-export function getSession() {
-	return request('/api/session');
+export function getProject() {
+	return request('/api/project');
 }
 
-export function saveSession(path) {
-	return post('/api/session/save', { path });
+export function newProject({ project_dir, name, zarr_dir, description = '', max_workers = 1 }) {
+	return post('/api/project/new', { project_dir, name, zarr_dir, description, max_workers });
 }
 
-export function loadSession(path) {
-	return post('/api/session/load', { path });
+export function openProject(project_dir) {
+	return post('/api/project/open', { project_dir });
+}
+
+export function saveProject() {
+	return post('/api/project/save', {});
 }
 
 // --- File-system dialogs -------------------------------------------------- //

@@ -7,33 +7,35 @@ summary, metrics, and updated dataset. ``POST /api/run/{job_id}/cancel`` stops t
 """
 
 import asyncio
+import contextlib
 import threading
-from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
-from backend import run_service
 from backend.jobs import Job, job_manager
 from backend.schemas import RunRequest
-from backend.state import AppState, get_state
+from backend.state import require_project
+from fractal_lite import Project, run_task, tasks_registry
 
 router = APIRouter(prefix="/api", tags=["run"])
 
 
-def _worker(job: Job, state: AppState, req: RunRequest) -> None:
+def _worker(job: Job, project: Project, req: RunRequest) -> None:
     """Execute the run on a daemon thread, streaming output into the job's queue."""
     try:
-        result = run_service.run_task(
-            state,
+        project.max_workers = req.max_workers
+        result = run_task(
+            project,
             req.task_name,
             req.kwargs_non_parallel,
             req.kwargs_parallel,
             req.filters,
             req.type_filters,
-            req.max_workers,
             on_output=job.emit,
             cancellation=job.cancellation,
         )
+        # Persist the mutated project (dataset + sandbox history) to its directory.
+        project.save()
         job.finish(
             {
                 "type": "done",
@@ -41,31 +43,30 @@ def _worker(job: Job, state: AppState, req: RunRequest) -> None:
                 "summary": result.summary,
                 "total_seconds": result.total_seconds,
                 "mean_item_seconds": result.mean_item_seconds,
-                "dataset": (
-                    state.dataset.model_dump(mode="json") if state.dataset else None
-                ),
+                "dataset": project.dataset.model_dump(mode="json"),
             }
         )
     except Exception as exc:
-        # Any failure is surfaced to the client as a terminal WS event.
+        # The runner already recorded the failure in history; persist it, then surface
+        # the error to the client as a terminal WS event.
+        with contextlib.suppress(Exception):  # best-effort persistence
+            project.save()
         job.finish({"type": "error", "detail": f"Run failed: {exc}"})
 
 
 @router.post("/run")
-async def start_run(req: RunRequest, state: AppState = Depends(get_state)) -> dict:
+async def start_run(
+    req: RunRequest, project: Project = Depends(require_project)
+) -> dict:
     """Validate, then launch a run on a worker thread; returns its ``job_id``."""
-    if state.dataset is None:
-        raise HTTPException(
-            status_code=400, detail="No dataset loaded. Create or load a dataset first."
-        )
     try:
-        run_service.tasks_registry.get_task(req.task_name)
+        tasks_registry.get_task(req.task_name)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
     loop = asyncio.get_running_loop()
     job = job_manager.create(loop)
-    threading.Thread(target=_worker, args=(job, state, req), daemon=True).start()
+    threading.Thread(target=_worker, args=(job, project, req), daemon=True).start()
     return {"job_id": job.id}
 
 
@@ -104,6 +105,6 @@ async def run_ws(websocket: WebSocket, job_id: str) -> None:
 
 
 @router.get("/run/history")
-def run_history(state: AppState = Depends(get_state)) -> list[dict]:
-    """Return the session run-history, newest last (matches in-memory order)."""
-    return [asdict(rec) for rec in state.run_history]
+def run_history(project: Project = Depends(require_project)) -> list[dict]:
+    """Return the sandbox run-history, newest last (matches in-memory order)."""
+    return [rec.model_dump(mode="json") for rec in project.sandbox_history]

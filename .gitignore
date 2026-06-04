@@ -10,3 +10,4 @@ src/frontend/.svelte-kit/
 state.json
 *.zarr
 .cache/
+*.flp

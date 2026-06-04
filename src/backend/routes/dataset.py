@@ -1,34 +1,33 @@
-"""Dataset endpoints: get/set the shared dataset, CSV load/save, create, napari."""
+"""Dataset endpoints: get/set the open project's dataset, CSV load/save, napari.
+
+All mutations operate on the open project's ``dataset`` and are persisted to the
+project directory (``table.csv``). Dataset *creation* is project creation — see
+``routes/project.py`` (``POST /api/project/new``).
+"""
 
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from backend.state import AppState, get_state
-from fractal_lite import Dataset, tasks_registry
+from backend.state import get_project, require_project
+from fractal_lite import Dataset, Project, tasks_registry
 from fractal_lite._filters import AttributeFilter, TypeFilter
 
 router = APIRouter(prefix="/api/dataset", tags=["dataset"])
 
 
 class DatasetPayload(BaseModel):
-    """The shared dataset as a model_dump dict, or None when absent."""
+    """The open project's dataset as a model_dump dict, or None when no project."""
 
     dataset: dict[str, Any] | None = None
 
 
 class PathPayload(BaseModel):
     path: str
-
-
-class CreateRequest(BaseModel):
-    """Create an empty dataset (POST /api/dataset/create)."""
-
-    name: str = "dataset"
-    zarr_dir: str
 
 
 class NapariRequest(BaseModel):
@@ -61,61 +60,48 @@ class PreviewResponse(BaseModel):
 
 
 @router.get("", response_model=DatasetPayload)
-def get_dataset(state: AppState = Depends(get_state)) -> DatasetPayload:
-    """Return the current shared dataset (or None)."""
+def get_dataset() -> DatasetPayload:
+    """Return the open project's dataset (or None when no project is open)."""
+    project = get_project()
     return DatasetPayload(
-        dataset=state.dataset.model_dump(mode="json") if state.dataset else None
+        dataset=project.dataset.model_dump(mode="json") if project else None
     )
 
 
 @router.post("", response_model=DatasetPayload)
 def set_dataset(
-    payload: DatasetPayload, state: AppState = Depends(get_state)
+    payload: DatasetPayload, project: Project = Depends(require_project)
 ) -> DatasetPayload:
-    """Replace the shared dataset from a model_dump dict (or clear it with None)."""
+    """Replace the open project's dataset from a model_dump dict."""
     if payload.dataset is None:
-        state.dataset = None
-        return DatasetPayload(dataset=None)
+        raise HTTPException(
+            status_code=400, detail="A project always has a dataset; cannot clear it."
+        )
     try:
-        state.dataset = Dataset.model_validate(payload.dataset)
+        project.dataset = Dataset.model_validate(payload.dataset)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
-
-
-@router.post("/create", response_model=DatasetPayload)
-def create_dataset(
-    req: CreateRequest, state: AppState = Depends(get_state)
-) -> DatasetPayload:
-    """Create an empty dataset, making ``zarr_dir`` on disk so tasks can write to it."""
-    try:
-        Path(req.zarr_dir).mkdir(parents=True, exist_ok=True)
-        state.dataset = Dataset(name=req.name, zarr_dir=req.zarr_dir, zarr_urls=[])
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
+    project.save_dataset()
+    return DatasetPayload(dataset=project.dataset.model_dump(mode="json"))
 
 
 @router.post("/preview", response_model=PreviewResponse)
 def preview(
-    req: PreviewRequest, state: AppState = Depends(get_state)
+    req: PreviewRequest, project: Project = Depends(require_project)
 ) -> PreviewResponse:
     """Apply the transient filters to a copy and report which images stay visible."""
-    if state.dataset is None:
-        return PreviewResponse()
-
     # Converter tasks ignore the existing image list — they run on zarr_dir.
     if req.task_name:
         try:
             inner = tasks_registry.get_task(req.task_name).task
             if inner.type.startswith("converter"):
                 return PreviewResponse(
-                    is_converter=True, zarr_dir=state.dataset.zarr_dir
+                    is_converter=True, zarr_dir=project.dataset.zarr_dir
                 )
         except KeyError:
             pass
 
-    working = state.dataset.model_copy(deep=True)
+    working = project.dataset.model_copy(deep=True)
     for attr, val in req.filters:
         if attr:
             working = AttributeFilter(attribute=attr, value=val).run(working)
@@ -124,10 +110,10 @@ def preview(
             working = TypeFilter(key=key, value=val).run(working)
     visible = [zu.url for zu in working.zarr_urls if zu.active]
     return PreviewResponse(
-        zarr_dir=state.dataset.zarr_dir,
+        zarr_dir=project.dataset.zarr_dir,
         visible_urls=visible,
         n_visible=len(visible),
-        n_total=len(state.dataset.zarr_urls),
+        n_total=len(project.dataset.zarr_urls),
     )
 
 
@@ -135,9 +121,14 @@ def preview(
 def open_in_napari(req: NapariRequest) -> dict:
     """Launch the installed napari CLI on a single image, detached."""
     try:
+        kwargs: dict = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
         subprocess.Popen(
             ["napari", req.zarr_url, "--plugin", "napari-ome-zarr"],
-            start_new_session=True,
+            **kwargs,
         )
     except FileNotFoundError as exc:
         raise HTTPException(
@@ -151,22 +142,23 @@ def open_in_napari(req: NapariRequest) -> dict:
 
 @router.post("/load-csv", response_model=DatasetPayload)
 def load_csv(
-    payload: PathPayload, state: AppState = Depends(get_state)
+    payload: PathPayload, project: Project = Depends(require_project)
 ) -> DatasetPayload:
-    """Load the shared dataset from a CSV file on disk (reuses Dataset.from_csv)."""
+    """Load the dataset from a CSV file on disk (reuses Dataset.from_csv)."""
     path = Path(payload.path)
     if not path.is_file():
         raise HTTPException(status_code=400, detail=f"File not found: {path}")
     try:
-        state.dataset = Dataset.from_csv(path)
+        project.dataset = Dataset.from_csv(path)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
+    project.save_dataset()
+    return DatasetPayload(dataset=project.dataset.model_dump(mode="json"))
 
 
 @router.post("/add-store", response_model=DatasetPayload)
 def add_store(
-    payload: PathPayload, state: AppState = Depends(get_state)
+    payload: PathPayload, project: Project = Depends(require_project)
 ) -> DatasetPayload:
     """Add an OME-Zarr store (image or plate) to the current dataset.
 
@@ -175,45 +167,42 @@ def add_store(
     empty we adopt the picked store's parent folder as ``zarr_dir``, letting the
     user populate a dataset from existing data outside the original directory.
     """
-    if state.dataset is None:
-        raise HTTPException(status_code=400, detail="Create a dataset first.")
-    ds = state.dataset
+    ds = project.dataset
     if not ds.zarr_urls:
         ds = ds.model_copy(update={"zarr_dir": str(Path(payload.path).parent)})
     try:
-        state.dataset = ds.from_raw_urls([payload.path])
+        project.dataset = ds.from_raw_urls([payload.path])
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
+    project.save_dataset()
+    return DatasetPayload(dataset=project.dataset.model_dump(mode="json"))
 
 
 @router.post("/remove-store", response_model=DatasetPayload)
 def remove_store(
-    req: RemoveRequest, state: AppState = Depends(get_state)
+    req: RemoveRequest, project: Project = Depends(require_project)
 ) -> DatasetPayload:
     """Remove a single image (by exact ``zarr_url``) from the current dataset."""
-    if state.dataset is None:
-        raise HTTPException(status_code=400, detail="No dataset loaded.")
-    state.dataset = state.dataset.remove_zarr_url(req.zarr_url)
-    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
+    project.dataset = project.dataset.remove_zarr_url(req.zarr_url)
+    project.save_dataset()
+    return DatasetPayload(dataset=project.dataset.model_dump(mode="json"))
 
 
 @router.post("/clear-images", response_model=DatasetPayload)
-def clear_images(state: AppState = Depends(get_state)) -> DatasetPayload:
+def clear_images(project: Project = Depends(require_project)) -> DatasetPayload:
     """Remove all images from the current dataset (keep the same zarr_dir)."""
-    if state.dataset is None:
-        raise HTTPException(status_code=400, detail="No dataset loaded.")
-    state.dataset = state.dataset.clear_images()
-    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
+    project.dataset = project.dataset.clear_images()
+    project.save_dataset()
+    return DatasetPayload(dataset=project.dataset.model_dump(mode="json"))
 
 
 @router.post("/save-csv")
-def save_csv(payload: PathPayload, state: AppState = Depends(get_state)) -> dict:
-    """Write the shared dataset to a CSV file on disk (reuses Dataset.to_csv)."""
-    if state.dataset is None:
-        raise HTTPException(status_code=400, detail="No dataset to save.")
+def save_csv(
+    payload: PathPayload, project: Project = Depends(require_project)
+) -> dict:
+    """Write the dataset to a CSV file on disk (reuses Dataset.to_csv)."""
     try:
-        state.dataset.to_csv(payload.path)
+        project.dataset.to_csv(payload.path)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"path": payload.path}

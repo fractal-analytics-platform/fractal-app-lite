@@ -49,7 +49,7 @@ python = ".pixi/envs/dev"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64"]
+platforms = ["osx-arm64", "linux-64", "win-64"]
 
 [tool.pixi.pypi-dependencies]
 fractal_lite = { path = ".", editable = true }

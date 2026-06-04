@@ -1,36 +1,45 @@
 """Tests for the workflow endpoints and the step-list <-> Workflow conversion.
 
 Run with: ``pixi run -e dev test``. Uses the ``seeded_client`` fixture (one collected
-package) so task steps resolve against the registry.
+package) so task steps resolve against the registry. State lives on a ``Project``
+singleton; the fixtures open a fresh project (with an empty workflow) per test.
 """
 
 import pytest
 from fastapi.testclient import TestClient
 
+from backend import state
 from backend.main import app
 from backend.schemas import WorkflowPayload, WorkflowStep
-from backend.state import app_state
 from backend.workflow_service import steps_to_workflow, workflow_to_payload
-from fractal_lite import tasks_registry
+from fractal_lite import Project, tasks_registry
 from fractal_lite._filters import AttributeFilter, TypeFilter
 from fractal_lite._tasks import Task
 
 
+def _open_project(tmp_path):
+    state.set_project(
+        Project.create(tmp_path / "proj", name="WF", zarr_dir=str(tmp_path / "z"))
+    )
+
+
 @pytest.fixture
-def client():
-    # Start each test from an empty workflow (the singleton persists across tests).
-    app_state.workflow = type(app_state.workflow)()
+def client(tmp_path):
+    # Each test starts from a fresh project with an empty workflow.
+    _open_project(tmp_path)
     with TestClient(app) as c:
         yield c
+    state.set_project(None)
 
 
 @pytest.fixture
-def seeded_client(converters_targz):
-    """A client whose registry has one collected package."""
-    app_state.workflow = type(app_state.workflow)()
+def seeded_client(converters_targz, tmp_path):
+    """A client whose registry has one collected package and an open project."""
     tasks_registry.collect_from_targz(converters_targz, overwrite=True)
+    _open_project(tmp_path)
     with TestClient(app) as c:
         yield c
+    state.set_project(None)
 
 
 def test_empty_workflow_initially(client):
@@ -82,9 +91,15 @@ def test_set_workflow_unknown_task_is_400(client):
     assert res.status_code == 400
 
 
-def test_run_without_dataset_is_400(client):
+def test_run_without_steps_is_400(client):
     client.post("/api/workflow", json={"steps": []})
     assert client.post("/api/workflow/run", json={}).status_code == 400
+
+
+def test_run_without_project_is_400(tmp_path):
+    state.set_project(None)
+    with TestClient(app) as c:
+        assert c.post("/api/workflow/run", json={}).status_code == 400
 
 
 def test_steps_to_workflow_builds_tasks_and_filters(seeded_client):
@@ -148,28 +163,22 @@ def test_save_load_round_trip(seeded_client, tmp_path):
 
 
 def test_workflow_run_streams_over_websocket(seeded_client, monkeypatch):
-    from backend import run_service
     from backend.routes import workflow as workflow_route
+    from fractal_lite import RunResult
 
-    def fake_run_workflow(state, start, end, max_workers, **kw):
+    def fake_run_workflow(project, start, end, **kw):
         on_output = kw.get("on_output")
         on_output("step 0")
         on_output("step 1")
-        return run_service.RunResult(
+        return RunResult(
             "completed", "2 step(s)", ["step 0", "step 1"], total_seconds=2.0
         )
 
-    monkeypatch.setattr(
-        workflow_route.workflow_service, "run_workflow", fake_run_workflow
-    )
+    monkeypatch.setattr(workflow_route, "run_workflow", fake_run_workflow)
 
     uid = seeded_client.get("/api/tasks").json()[0]["unique_id"]
     seeded_client.post(
         "/api/workflow", json={"steps": [{"kind": "task", "task_name": uid}]}
-    )
-    seeded_client.post(
-        "/api/dataset",
-        json={"dataset": {"name": "demo", "zarr_dir": "/tmp/z", "zarr_urls": []}},
     )
 
     job_id = seeded_client.post("/api/workflow/run", json={}).json()["job_id"]
@@ -188,17 +197,17 @@ def test_workflow_run_streams_over_websocket(seeded_client, monkeypatch):
 
 def test_workflow_run_records_history(client):
     """A real run (a filter-only workflow, no subprocess) appends a restorable
-    record served by ``GET /api/workflow/history``."""
-    from backend import workflow_service
-    from fractal_lite import Dataset, ZarrUrl
+    record served by ``GET /api/workflow/history`` (with the workflow snapshot
+    converted to the frontend payload shape)."""
+    from fractal_lite import Dataset, ZarrUrl, run_workflow
 
-    app_state.workflow_history = []
-    app_state.dataset = Dataset(
+    project = state.get_project()
+    project.dataset = Dataset(
         name="demo",
         zarr_dir="/tmp/z",
         zarr_urls=[ZarrUrl(url="/tmp/z/a", attributes={"well": "A01"})],
     )
-    app_state.workflow = steps_to_workflow(
+    project.workflow = steps_to_workflow(
         WorkflowPayload(
             name="HistWF",
             steps=[
@@ -211,26 +220,28 @@ def test_workflow_run_records_history(client):
             ],
         )
     )
-    result = workflow_service.run_workflow(app_state)
+    result = run_workflow(project)
     assert result.status == "completed"
 
     hist = client.get("/api/workflow/history").json()
     assert hist[-1]["name"] == "HistWF"
     assert hist[-1]["status"] == "completed"
     assert hist[-1]["payload"]["steps"][0]["filter_type"] == "attribute"
-    app_state.dataset = None
 
 
-def test_session_persists_workflow(seeded_client):
+def test_project_persists_workflow(seeded_client):
     uid = seeded_client.get("/api/tasks").json()[0]["unique_id"]
     seeded_client.post(
         "/api/workflow",
         json={"name": "InSession", "steps": [{"kind": "task", "task_name": uid}]},
     )
-    bundle = seeded_client.get("/api/session").json()["data"]
-    assert bundle["workflow"]["name"] == "InSession"
+    project_dir = str(state.get_project().project_dir)
+    seeded_client.post("/api/project/save")
 
-    # Wipe the in-memory workflow, then restore the session bundle.
-    app_state.workflow = type(app_state.workflow)()
-    seeded_client.post("/api/session", json={"data": bundle})
+    # Drop the open project, then re-open it from disk; the workflow round-trips.
+    state.set_project(None)
+    opened = seeded_client.post(
+        "/api/project/open", json={"project_dir": project_dir}
+    )
+    assert opened.status_code == 200
     assert seeded_client.get("/api/workflow").json()["name"] == "InSession"

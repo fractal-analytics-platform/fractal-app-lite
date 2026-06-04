@@ -18,8 +18,9 @@ import uvicorn
 import webview
 
 from backend import fs
-from backend import session as session_io
 from backend.main import app
+from backend.state import set_project
+from fractal_lite import Project
 
 logger = logging.getLogger(__name__)
 
@@ -54,18 +55,20 @@ def _wait_until_ready(url: str, timeout: float = 30.0) -> bool:
     return False
 
 
-def _resume_session(path: str) -> None:
-    """Restore a saved session at startup.
+def _open_project(project_dir: str) -> None:
+    """Open a saved project at startup.
 
-    ``load_session`` rehydrates the registry from the bundle's stored sources
-    (re-parsing them) and re-resolves the workflow, all best-effort, so a resume
+    ``Project.load`` rehydrates the registry from the project's stored sources
+    (re-collecting them) and re-resolves the workflow, all best-effort, so opening
     still succeeds if a task source has moved.
     """
     try:
-        session_io.load_session(path)
-        logger.info("Resumed session from %s", path)
+        set_project(Project.load(project_dir))
+        logger.info("Opened project from %s", project_dir)
     except Exception as exc:
-        logger.error("Failed to resume from %s: %s — starting fresh.", path, exc)
+        logger.error(
+            "Failed to open %s: %s — starting with no project.", project_dir, exc
+        )
 
 
 def main() -> None:
@@ -73,9 +76,10 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(prog="fractal-lite-app")
     parser.add_argument(
-        "--resume",
-        metavar="STATE_JSON",
-        help="Restore a session saved with the app's 'Save session' button.",
+        "--open",
+        metavar="PROJECT_DIR",
+        dest="open_dir",
+        help="Open a project directory saved with the app's 'Save project' button.",
     )
     args, _ = parser.parse_known_args()
 
@@ -89,12 +93,18 @@ def main() -> None:
         raise RuntimeError(f"Backend did not become ready at {url}")
     logger.info("Backend ready at %s", url)
 
-    # The registry starts empty; a --resume bundle restores a saved registry and
-    # dataset before the window opens.
-    if args.resume and Path(args.resume).is_file():
-        _resume_session(args.resume)
-    elif args.resume:
-        logger.error("Resume file not found: %s — starting fresh.", args.resume)
+    # The registry starts empty; --open restores a saved project (registry, dataset,
+    # workflow and histories) before the window opens.
+    if args.open_dir:
+        p = Path(args.open_dir)
+        if not p.is_dir() and p.suffix != ".flp":
+            p_flp = p.with_name(p.name + ".flp")
+            if p_flp.is_dir():
+                p = p_flp
+        if p.is_dir():
+            _open_project(str(p))
+        else:
+            logger.error("Project directory not found: %s — starting fresh.", args.open_dir)
 
     window = webview.create_window(
         _TITLE, url, width=_WINDOW_SIZE[0], height=_WINDOW_SIZE[1]

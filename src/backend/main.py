@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from backend.routes import dataset, fs, params, run, session, tasks, workflow
+from backend.routes import dataset, fs, params, project, run, tasks, workflow
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
 
     app.include_router(tasks.router)
     app.include_router(dataset.router)
-    app.include_router(session.router)
+    app.include_router(project.router)
     app.include_router(run.router)
     app.include_router(workflow.router)
     app.include_router(fs.router)

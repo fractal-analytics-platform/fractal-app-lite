@@ -7,14 +7,19 @@
 	import { onMount } from 'svelte';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import PathModal from '$lib/components/PathModal.svelte';
-	import { listTasks, saveSession, loadSession } from '$lib/api.js';
-	import { store, notify, refreshDataset } from '$lib/stores.svelte.js';
-	import { pickOpenFile, pickSaveFile } from '$lib/filepick.js';
+	import NewProjectModal from '$lib/components/NewProjectModal.svelte';
+	import { listTasks, openProject, saveProject } from '$lib/api.js';
+	import { store, notify, refreshDataset, refreshProject } from '$lib/stores.svelte.js';
+	import { pickOpenDirectory } from '$lib/filepick.js';
 
 	let { children } = $props();
 
+	let showNewProject = $state(false);
+
 	onMount(async () => {
 		await import('bootstrap/dist/js/bootstrap.bundle.min.js');
+		// Pick up a project that was opened at startup (e.g. `--open <dir>`).
+		await refreshTabs();
 	});
 
 	function toggleDark() {
@@ -22,31 +27,39 @@
 		document.documentElement.setAttribute('data-bs-theme', store.dark ? 'dark' : 'light');
 	}
 
-	async function doSaveSession() {
-		const path = await pickSaveFile('Save session', 'state.json', [
-			'JSON (*.json)',
-			'All files (*.*)'
-		]);
-		if (!path) return;
+	// Re-read everything a new/opened project replaces: project info, registry, dataset.
+	async function refreshTabs() {
+		await refreshProject();
+		store.tasks = await listTasks();
+		await refreshDataset();
+	}
+
+	async function onProjectCreated() {
+		await refreshTabs();
+	}
+
+	async function doOpenProject() {
+		const dir = await pickOpenDirectory('Open project');
+		if (!dir) return;
 		try {
-			await saveSession(path);
-			notify(`Saved session to ${path}`, 'positive');
+			await openProject(dir);
+			await refreshTabs();
+			notify(`Opened project from ${dir}`, 'positive');
 		} catch (e) {
-			notify(`Failed to save session: ${e.message ?? e}`, 'negative');
+			notify(`Failed to open project: ${e.message ?? e}`, 'negative');
 		}
 	}
 
-	async function doLoadSession() {
-		const path = await pickOpenFile('Load session', ['JSON (*.json)', 'All files (*.*)']);
-		if (!path) return;
+	async function doSaveProject() {
+		if (!store.project) {
+			notify('No project open to save.', 'warning');
+			return;
+		}
 		try {
-			await loadSession(path);
-			// A session restore replaces the dataset + registry; refresh every tab.
-			store.tasks = await listTasks();
-			await refreshDataset();
-			notify(`Loaded session from ${path}`, 'positive');
+			await saveProject();
+			notify(`Saved project to ${store.project.project_dir}`, 'positive');
 		} catch (e) {
-			notify(`Failed to load session: ${e.message ?? e}`, 'negative');
+			notify(`Failed to save project: ${e.message ?? e}`, 'negative');
 		}
 	}
 </script>
@@ -55,13 +68,25 @@
 	<div class="navbar-brand d-flex align-items-center gap-2 mb-0">
 		<img src="/fractal_logo.png" alt="Fractal" width="28" height="28" style="object-fit: contain;" />
 		<span class="h5 mb-0">Fractal Lite</span>
+		{#if store.project}
+			<span class="badge text-bg-secondary fw-normal" title={store.project.project_dir}>
+				{store.project.name}
+			</span>
+		{/if}
 	</div>
 	<div class="d-flex align-items-center gap-2">
-		<button class="btn btn-sm btn-outline-secondary" onclick={doSaveSession}>
-			<i class="bi bi-save"></i> Save session
+		<button class="btn btn-sm btn-outline-secondary" onclick={() => (showNewProject = true)}>
+			<i class="bi bi-plus-square"></i> New project
 		</button>
-		<button class="btn btn-sm btn-outline-secondary" onclick={doLoadSession}>
-			<i class="bi bi-folder2-open"></i> Load session
+		<button class="btn btn-sm btn-outline-secondary" onclick={doOpenProject}>
+			<i class="bi bi-folder2-open"></i> Open project
+		</button>
+		<button
+			class="btn btn-sm btn-outline-secondary"
+			onclick={doSaveProject}
+			disabled={!store.project}
+		>
+			<i class="bi bi-save"></i> Save project
 		</button>
 		<button
 			class="btn btn-sm btn-outline-secondary"
@@ -80,3 +105,4 @@
 
 <Toasts />
 <PathModal />
+<NewProjectModal bind:open={showNewProject} onCreated={onProjectCreated} />
