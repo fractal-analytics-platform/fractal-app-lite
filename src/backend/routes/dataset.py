@@ -6,6 +6,7 @@ project directory (``table.csv``). Dataset *creation* is project creation — se
 """
 
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -120,9 +121,14 @@ def preview(
 def open_in_napari(req: NapariRequest) -> dict:
     """Launch the installed napari CLI on a single image, detached."""
     try:
+        kwargs: dict = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
         subprocess.Popen(
             ["napari", req.zarr_url, "--plugin", "napari-ome-zarr"],
-            start_new_session=True,
+            **kwargs,
         )
     except FileNotFoundError as exc:
         raise HTTPException(
