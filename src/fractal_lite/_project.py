@@ -26,6 +26,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from fractal_lite.__version__ import __version__ as _APP_VERSION
 from fractal_lite._dataset import Dataset
 from fractal_lite._history import SandboxHistory, WorkflowHistory
 from fractal_lite._registry import tasks_registry
@@ -39,6 +40,7 @@ class ProjectIndex(BaseModel):
     """The ``project.json`` index: project metadata + relative artifact filenames."""
 
     version: int = 1
+    fractal_lite_version: str = _APP_VERSION
     name: str = "Project"
     description: str = ""
     # The dataset's ``zarr_dir`` (stored here so it round-trips faithfully; the CSV

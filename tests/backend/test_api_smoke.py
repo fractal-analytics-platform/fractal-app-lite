@@ -1,9 +1,11 @@
-"""Smoke tests for the backend REST API (Phases 2-4).
+"""Smoke tests for the backend REST API.
 
 Run with the project's pixi dev env: ``pixi run -e dev test``. These exercise the API
 surface end-to-end against the in-process app. The registry starts empty (packages are
 collected on demand), so tests that need registered tasks use the ``seeded_client``
-fixture, which collects one package first.
+fixture, which collects one package first. State lives on a ``Project`` singleton; the
+``client`` fixtures reset it, and ``proj_client`` opens a fresh project so dataset/run
+endpoints have somewhere to operate.
 """
 
 from urllib.parse import quote
@@ -11,22 +13,49 @@ from urllib.parse import quote
 import pytest
 from fastapi.testclient import TestClient
 
+from backend import state
 from backend.main import app
-from fractal_lite import tasks_registry
+from fractal_lite import Project, RunResult, tasks_registry
 
 
 @pytest.fixture
 def client():
+    state.set_project(None)
     with TestClient(app) as c:
         yield c
+    state.set_project(None)
 
 
 @pytest.fixture
 def seeded_client(converters_targz):
     """A client whose registry has one collected package (startup no longer seeds)."""
     tasks_registry.collect_from_targz(converters_targz, overwrite=True)
+    state.set_project(None)
     with TestClient(app) as c:
         yield c
+    state.set_project(None)
+
+
+def _open_project(tmp_path, name="demo", zarr_dir=None):
+    """Create + register a fresh project on the singleton, returning it."""
+    zarr_dir = zarr_dir if zarr_dir is not None else str(tmp_path / "z")
+    project = Project.create(tmp_path / "proj", name=name, zarr_dir=zarr_dir)
+    state.set_project(project)
+    return project
+
+
+@pytest.fixture
+def proj_client(client, tmp_path):
+    """A client with an open project (empty dataset)."""
+    _open_project(tmp_path)
+    return client
+
+
+@pytest.fixture
+def seeded_proj_client(seeded_client, tmp_path):
+    """A client with both a collected package and an open project."""
+    _open_project(tmp_path)
+    return seeded_client
 
 
 def test_health(client):
@@ -60,20 +89,93 @@ def test_unknown_task_schema_404(client):
     assert client.get("/api/tasks/Nope/schema").status_code == 404
 
 
-def test_run_without_dataset_is_400(seeded_client):
+def test_run_without_project_is_400(seeded_client):
     uid = seeded_client.get("/api/tasks").json()[0]["unique_id"]
     res = seeded_client.post("/api/run", json={"task_name": uid})
     assert res.status_code == 400
+    assert "No project open" in res.json()["detail"]
 
 
-def test_create_dataset_makes_zarr_dir(client, tmp_path):
+def test_no_project_returns_null_dataset(client):
+    assert client.get("/api/dataset").json()["dataset"] is None
+
+
+def test_get_project_is_null_without_one(client):
+    assert client.get("/api/project").json() is None
+
+
+def test_new_project_makes_dirs(client, tmp_path):
+    project_dir = tmp_path / "myproj"
+    project_dir_flp = tmp_path / "myproj.flp"
     zarr_dir = tmp_path / "out_zarr"
     res = client.post(
-        "/api/dataset/create", json={"name": "demo", "zarr_dir": str(zarr_dir)}
+        "/api/project/new",
+        json={
+            "project_dir": str(project_dir),
+            "name": "demo",
+            "zarr_dir": str(zarr_dir),
+        },
     )
     assert res.status_code == 200
+    body = res.json()
+    assert body["name"] == "demo"
     assert zarr_dir.is_dir()
-    assert res.json()["dataset"]["name"] == "demo"
+    assert (project_dir_flp / "project.json").is_file()
+    # The project is now the open one.
+    assert client.get("/api/project").json()["project_dir"] == str(project_dir_flp)
+
+
+def test_new_project_defaults_zarr_dir_inside_project(client, tmp_path):
+    project_dir = tmp_path / "myproj"
+    project_dir_flp = tmp_path / "myproj.flp"
+    res = client.post(
+        "/api/project/new",
+        json={"project_dir": str(project_dir), "name": "demo", "description": "notes"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["zarr_dir"] == str(project_dir_flp / "zarr_dir")
+    assert body["description"] == "notes"
+    assert (project_dir_flp / "zarr_dir").is_dir()
+
+
+def test_new_project_accepts_existing_empty_dir(client, tmp_path):
+    project_dir = tmp_path / "empty"
+    project_dir.mkdir()
+    res = client.post(
+        "/api/project/new", json={"project_dir": str(project_dir), "name": "demo"}
+    )
+    assert res.status_code == 200
+
+
+def test_new_project_rejects_non_empty_dir(client, tmp_path):
+    project_dir = tmp_path / "full.flp"
+    project_dir.mkdir()
+    (project_dir / "stuff.txt").write_text("x")
+    res = client.post(
+        "/api/project/new", json={"project_dir": str(project_dir), "name": "demo"}
+    )
+    assert res.status_code == 400
+    assert "not empty" in res.json()["detail"]
+
+
+def test_new_project_appends_flp_suffix(client, tmp_path):
+    res = client.post(
+        "/api/project/new",
+        json={"project_dir": str(tmp_path / "myproj"), "name": "demo"},
+    )
+    assert res.status_code == 200
+    assert res.json()["project_dir"].endswith(".flp")
+
+
+def test_new_project_no_double_suffix(client, tmp_path):
+    res = client.post(
+        "/api/project/new",
+        json={"project_dir": str(tmp_path / "myproj.flp"), "name": "demo"},
+    )
+    assert res.status_code == 200
+    assert res.json()["project_dir"].endswith("myproj.flp")
+    assert not res.json()["project_dir"].endswith("myproj.flp.flp")
 
 
 def test_fs_dialogs_report_no_native_window(client):
@@ -149,7 +251,7 @@ def test_registry_save_load_roundtrip(seeded_client, tmp_path):
     assert len(loaded.json()) > 0
 
 
-def test_preview_applies_filters(client):
+def test_preview_applies_filters(proj_client):
     ds = {
         "name": "demo",
         "zarr_dir": "/tmp/z",
@@ -168,14 +270,16 @@ def test_preview_applies_filters(client):
             },
         ],
     }
-    assert client.post("/api/dataset", json={"dataset": ds}).status_code == 200
-    res = client.post("/api/dataset/preview", json={"filters": [["well", "A"]]}).json()
+    assert proj_client.post("/api/dataset", json={"dataset": ds}).status_code == 200
+    res = proj_client.post(
+        "/api/dataset/preview", json={"filters": [["well", "A"]]}
+    ).json()
     assert res["n_total"] == 2
     assert res["n_visible"] == 1
     assert res["visible_urls"] == ["/tmp/z/A"]
 
     # Type filters narrow on the boolean ``types`` dict.
-    res = client.post(
+    res = proj_client.post(
         "/api/dataset/preview", json={"type_filters": [["is_3D", True]]}
     ).json()
     assert res["n_visible"] == 1
@@ -186,38 +290,40 @@ def _fake_image_opener(url):
     return type("_Img", (), {"is_3d": True})()
 
 
-def test_add_store_requires_dataset(client):
-    client.post("/api/dataset", json={"dataset": None})  # clear any dataset
+def test_dataset_endpoints_require_project(client):
     res = client.post("/api/dataset/add-store", json={"path": "/tmp/z/img.zarr"})
     assert res.status_code == 400
-    assert "Create a dataset first" in res.json()["detail"]
+    assert "No project open" in res.json()["detail"]
+    res = client.post("/api/dataset/remove-store", json={"zarr_url": "/tmp/z/A"})
+    assert res.status_code == 400
+    assert "No project open" in res.json()["detail"]
 
 
-def test_add_store_adds_image_under_zarr_dir(client, monkeypatch):
+def test_add_store_adds_image_under_zarr_dir(proj_client, monkeypatch):
     from fractal_lite import _dataset
 
     monkeypatch.setattr(_dataset, "open_ome_zarr_container", _fake_image_opener)
-    client.post(
+    proj_client.post(
         "/api/dataset",
         json={"dataset": {"name": "demo", "zarr_dir": "/tmp/z", "zarr_urls": []}},
     )
-    res = client.post("/api/dataset/add-store", json={"path": "/tmp/z/img.zarr"})
+    res = proj_client.post("/api/dataset/add-store", json={"path": "/tmp/z/img.zarr"})
     assert res.status_code == 200
     urls = [zu["url"] for zu in res.json()["dataset"]["zarr_urls"]]
     assert "/tmp/z/img.zarr" in urls
 
 
-def test_add_store_empty_dataset_adopts_parent_dir(client, monkeypatch):
+def test_add_store_empty_dataset_adopts_parent_dir(proj_client, monkeypatch):
     from fractal_lite import _dataset
 
     monkeypatch.setattr(_dataset, "open_ome_zarr_container", _fake_image_opener)
-    client.post(
+    proj_client.post(
         "/api/dataset",
         json={"dataset": {"name": "demo", "zarr_dir": "/some/output", "zarr_urls": []}},
     )
     # Store lives outside the original zarr_dir; since the dataset is empty the
     # store's parent folder is adopted as the new zarr_dir.
-    res = client.post(
+    res = proj_client.post(
         "/api/dataset/add-store", json={"path": "/data/external/img.zarr"}
     )
     assert res.status_code == 200
@@ -226,35 +332,30 @@ def test_add_store_empty_dataset_adopts_parent_dir(client, monkeypatch):
     assert [zu["url"] for zu in ds["zarr_urls"]] == ["/data/external/img.zarr"]
 
 
-def test_add_store_outside_zarr_dir_is_400_when_non_empty(client, monkeypatch):
+def test_add_store_outside_zarr_dir_is_400_when_non_empty(proj_client, monkeypatch):
     from fractal_lite import _dataset
 
     monkeypatch.setattr(_dataset, "open_ome_zarr_container", _fake_image_opener)
-    client.post(
+    proj_client.post(
         "/api/dataset",
         json={"dataset": {"name": "demo", "zarr_dir": "/tmp/z", "zarr_urls": []}},
     )
     # First add seeds an image under zarr_dir, so the dataset is no longer empty.
     assert (
-        client.post(
+        proj_client.post(
             "/api/dataset/add-store", json={"path": "/tmp/z/img.zarr"}
         ).status_code
         == 200
     )
     # A store outside the now-fixed zarr_dir is rejected.
-    res = client.post("/api/dataset/add-store", json={"path": "/elsewhere/img.zarr"})
+    res = proj_client.post(
+        "/api/dataset/add-store", json={"path": "/elsewhere/img.zarr"}
+    )
     assert res.status_code == 400
     assert "zarr_dir" in res.json()["detail"]
 
 
-def test_remove_store_requires_dataset(client):
-    client.post("/api/dataset", json={"dataset": None})  # clear any dataset
-    res = client.post("/api/dataset/remove-store", json={"zarr_url": "/tmp/z/A"})
-    assert res.status_code == 400
-    assert "No dataset loaded" in res.json()["detail"]
-
-
-def test_remove_store_drops_image(client):
+def test_remove_store_drops_image(proj_client):
     ds = {
         "name": "demo",
         "zarr_dir": "/tmp/z",
@@ -263,8 +364,8 @@ def test_remove_store_drops_image(client):
             {"url": "/tmp/z/B", "attributes": {}, "active": True},
         ],
     }
-    assert client.post("/api/dataset", json={"dataset": ds}).status_code == 200
-    res = client.post("/api/dataset/remove-store", json={"zarr_url": "/tmp/z/A"})
+    assert proj_client.post("/api/dataset", json={"dataset": ds}).status_code == 200
+    res = proj_client.post("/api/dataset/remove-store", json={"zarr_url": "/tmp/z/A"})
     assert res.status_code == 200
     urls = [zu["url"] for zu in res.json()["dataset"]["zarr_urls"]]
     assert urls == ["/tmp/z/B"]
@@ -287,17 +388,14 @@ def test_cancel_unknown_job_404(client):
     assert client.post("/api/run/nope/cancel").status_code == 404
 
 
-def test_run_streams_over_websocket(client, monkeypatch):
-    from backend import run_service
+def test_run_streams_over_websocket(seeded_proj_client, monkeypatch):
     from backend.routes import run as run_route
 
-    def fake_run_task(
-        state, task_name, knp, kp, filters, type_filters, max_workers, **kw
-    ):
+    def fake_run_task(project, task_name, knp, kp, filters, type_filters, **kw):
         on_output = kw.get("on_output")
         on_output("line one")
         on_output("line two")
-        return run_service.RunResult(
+        return RunResult(
             "completed",
             "+0 images (2 total)",
             ["line one", "line two"],
@@ -305,16 +403,14 @@ def test_run_streams_over_websocket(client, monkeypatch):
             mean_item_seconds=0.5,
         )
 
-    monkeypatch.setattr(run_route.run_service, "run_task", fake_run_task)
+    monkeypatch.setattr(run_route, "run_task", fake_run_task)
 
-    # A dataset must be present for the run to start.
-    ds = {"dataset": {"name": "demo", "zarr_dir": "/tmp/z", "zarr_urls": []}}
-    client.post("/api/dataset", json=ds)
-    uid = client.get("/api/tasks").json()[0]["unique_id"]
-
-    job_id = client.post("/api/run", json={"task_name": uid}).json()["job_id"]
+    uid = seeded_proj_client.get("/api/tasks").json()[0]["unique_id"]
+    job_id = seeded_proj_client.post("/api/run", json={"task_name": uid}).json()[
+        "job_id"
+    ]
     messages = []
-    with client.websocket_connect(f"/api/run/{job_id}/ws") as ws:
+    with seeded_proj_client.websocket_connect(f"/api/run/{job_id}/ws") as ws:
         while True:
             msg = ws.receive_json()
             messages.append(msg)
@@ -326,17 +422,31 @@ def test_run_streams_over_websocket(client, monkeypatch):
     assert messages[-1]["status"] == "completed"
     assert messages[-1]["mean_item_seconds"] == 0.5
     # The history endpoint always returns a list (the fake run does not record).
-    assert isinstance(client.get("/api/run/history").json(), list)
+    assert isinstance(seeded_proj_client.get("/api/run/history").json(), list)
 
 
-def test_dataset_and_session_roundtrip(client):
+def test_dataset_and_project_roundtrip(proj_client, tmp_path):
     # Set a dataset, read it back.
-    payload = {"dataset": {"name": "demo", "zarr_dir": "/tmp/z", "zarr_urls": []}}
-    assert client.post("/api/dataset", json=payload).status_code == 200
-    got = client.get("/api/dataset").json()["dataset"]
+    payload = {
+        "dataset": {
+            "name": "demo",
+            "zarr_dir": "/tmp/z",
+            "zarr_urls": [{"url": "/tmp/z/A", "attributes": {}, "active": True}],
+        }
+    }
+    assert proj_client.post("/api/dataset", json=payload).status_code == 200
+    got = proj_client.get("/api/dataset").json()["dataset"]
     assert got["name"] == "demo"
 
-    # Session bundle round-trips (reuses the existing JSON (de)serialization).
-    session = client.get("/api/session").json()["data"]
-    assert "registry" in session and "dataset" in session
-    assert client.post("/api/session", json={"data": session}).status_code == 200
+    # Save the project, then re-open it from its directory and confirm it round-trips.
+    saved = proj_client.post("/api/project/save").json()
+    project_dir = saved["project_dir"]
+    state.set_project(None)
+    assert proj_client.get("/api/dataset").json()["dataset"] is None
+
+    opened = proj_client.post(
+        "/api/project/open", json={"project_dir": project_dir}
+    )
+    assert opened.status_code == 200
+    ds = proj_client.get("/api/dataset").json()["dataset"]
+    assert [zu["url"] for zu in ds["zarr_urls"]] == ["/tmp/z/A"]

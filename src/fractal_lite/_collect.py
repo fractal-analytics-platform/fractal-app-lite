@@ -21,13 +21,17 @@ from fractal_lite._tasks import (
 logger = logging.getLogger(__name__)
 
 
-def _fractal_collection_dir() -> Path:
-    """Determine the directory where collected tasks are stored.
+def _fractal_lite_dir() -> Path:
+    """Base user data directory for fractal_lite. Defaults to ~/fractal_lite.
 
-    Default is "./collected", but can be overridden by setting the
-    FRACTAL_COLLECTION_DIR environment variable to a different path.
+    Override with the FRACTAL_LITE_DIR environment variable.
     """
-    return Path(os.environ.get("FRACTAL_COLLECTION_DIR", "./collected"))
+    return Path(os.environ.get("FRACTAL_LITE_DIR", "~/fractal_lite")).expanduser()
+
+
+def _fractal_collection_dir() -> Path:
+    """Where collected task packages are stored: {FRACTAL_LITE_DIR}/collected_tasks."""
+    return _fractal_lite_dir() / "collected_tasks"
 
 
 # Fractal manifest task types this runner can model and execute. Each entry

@@ -1,76 +1,40 @@
 """Shared, in-process application state for the sandbox v2 backend.
 
 This is a single-user local desktop app, so a module-level singleton holding the
-current ``Dataset`` and the session run-history is sufficient (the brief's §4). The
-task registry is already a global singleton (``fractal_lite.tasks_registry``)
-and is used directly. State is injected into FastAPI handlers via the ``get_state``
-dependency so handlers stay testable.
+currently open :class:`~fractal_lite.Project` is sufficient. A ``Project`` owns the
+dataset, the workflow, both run-histories and the project settings, and persists
+itself to a project directory (one file per concern). The task registry remains a
+global singleton (``fractal_lite.tasks_registry``) and is used directly.
 
-Ported from the NiceGUI app's ``fractal_lite_app.state`` — the dataclasses are
-unchanged so the existing session JSON (de)serialization keeps working.
+The project is injected into FastAPI handlers via the ``require_project`` dependency
+so handlers stay testable. There is no project until the user creates one
+(``POST /api/project/new``) or opens one (``POST /api/project/open``).
 """
 
-from dataclasses import dataclass, field
+from fastapi import HTTPException
 
-from fractal_lite import Dataset, Workflow
+from fractal_lite import Project
 
-
-@dataclass
-class RunRecord:
-    """One entry in the session run-history."""
-
-    index: int
-    task_name: str
-    # Filters applied for this run, as (attribute, value) pairs.
-    filters: list[tuple[str, str]]
-    kwargs_non_parallel: dict | None
-    kwargs_parallel: dict | None
-    # Human-readable result summary, e.g. "+8 images (42 total)".
-    summary: str
-    # Outcome of the run: "completed", "cancelled", or "failed".
-    status: str = "completed"
-    # Type filters applied for this run, as (key, value) boolean pairs.
-    type_filters: list[tuple[str, bool]] = field(default_factory=list)
+# Module-level singleton for the single-user process. ``None`` until a project is
+# created or opened.
+_project: Project | None = None
 
 
-@dataclass
-class WorkflowRunRecord:
-    """One entry in the workflow run-history (the Workflow tab's counterpart to
-    :class:`RunRecord`)."""
-
-    index: int
-    name: str
-    # Human-readable result summary, e.g. "3 step(s): 8 → 42 images (42 visible)".
-    summary: str
-    # Outcome of the run: "completed", "cancelled", or "failed".
-    status: str = "completed"
-    # Snapshot of the editable step-list payload (``workflow_to_payload`` shape), so a
-    # run can be fully restored into the editor.
-    payload: dict | None = None
-    # The [start, end) sub-range that was actually run (display only).
-    start_task: int = 0
-    end_task: int | None = None
+def get_project() -> Project | None:
+    """Return the currently open project, or ``None`` when none is open."""
+    return _project
 
 
-@dataclass
-class AppState:
-    """Mutable session state shared across the app."""
-
-    dataset: Dataset | None = None
-    run_history: list[RunRecord] = field(default_factory=list)
-    # Past workflow runs (the Workflow tab's restore-capable history).
-    workflow_history: list[WorkflowRunRecord] = field(default_factory=list)
-    # Max concurrent task subprocesses for the parallel phase (1 = sequential).
-    max_workers: int = 1
-    # The workflow being composed in the Workflow tab (the canonical Workflow;
-    # the frontend mirrors it as an editable step list).
-    workflow: Workflow = field(default_factory=Workflow)
+def set_project(project: Project | None) -> None:
+    """Replace the process-wide open project (or clear it with ``None``)."""
+    global _project
+    _project = project
 
 
-# Module-level singleton for the single-user process.
-app_state = AppState()
-
-
-def get_state() -> AppState:
-    """FastAPI dependency returning the process-wide application state."""
-    return app_state
+def require_project() -> Project:
+    """FastAPI dependency returning the open project, 400-ing when there is none."""
+    if _project is None:
+        raise HTTPException(
+            status_code=400, detail="No project open. Create or open a project first."
+        )
+    return _project

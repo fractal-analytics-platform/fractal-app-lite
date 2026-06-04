@@ -1,34 +1,14 @@
-"""Workflow composition + execution, the multi-step counterpart to ``run_service``.
+"""Conversion between the frontend's editable step list and the canonical Workflow.
 
-Two halves:
-
-* **Conversion** between the frontend's editable step list (``WorkflowPayload``) and the
-  canonical :class:`~fractal_lite.Workflow` held in :class:`AppState`. Task
-  steps are resolved against the global ``tasks_registry`` by ``unique_id`` (the same
-  lookup ``run_service`` uses); filter steps map to ``AttributeFilter``/``TypeFilter``.
-
-* **Execution** (:func:`run_workflow`). Unlike ``run_service.run_task`` — which runs one
-  task in isolation and folds only *new* images back into a deep copy — a workflow
-  threads the shared dataset through every step in order, so ``Task.run`` applies input-
-  /output-types and ``active`` flags cumulatively. The shared ``state.dataset`` is
-  therefore *replaced* with the threaded result. Supports running a sub-range
-  ``[start, end)`` so a later step can be re-run without redoing the converters.
+Execution now lives in :func:`fractal_lite.run_workflow` (operating on a
+:class:`~fractal_lite.Project`); this module keeps only the frontend↔canonical
+bridge, which has no equivalent in ``fractal_lite``. Task steps are resolved against
+the global ``tasks_registry`` by ``unique_id`` (the same lookup the runner uses);
+filter steps map to ``AttributeFilter``/``TypeFilter``.
 """
 
-import time
-from collections.abc import Callable
-
-from backend.run_service import RunResult
 from backend.schemas import WorkflowPayload
-from backend.state import AppState, WorkflowRunRecord
-from fractal_lite import (
-    Cancellation,
-    Dataset,
-    RunCancelled,
-    RunMetrics,
-    Workflow,
-    tasks_registry,
-)
+from fractal_lite import Workflow, tasks_registry
 from fractal_lite._filters import AttributeFilter, Filter, TypeFilter
 from fractal_lite._tasks import Task
 
@@ -110,110 +90,3 @@ def workflow_to_payload(workflow: Workflow) -> dict:
         "description": workflow.description,
         "steps": steps,
     }
-
-
-def run_workflow(
-    state: AppState,
-    start_task: int = 0,
-    end_task: int | None = None,
-    max_workers: int = 1,
-    *,
-    on_output: Callable[[str], None] | None = None,
-    cancellation: Cancellation | None = None,
-) -> RunResult:
-    """Run ``state.workflow`` over the shared dataset, threading it through each step.
-
-    Runs steps ``[start_task, end_task)``. Mutates ``state.dataset`` (replacing it with
-    the threaded result) and appends a summarizing entry to ``state.run_history``.
-
-    Raises:
-        ValueError: If there is no dataset or the workflow has no steps to run.
-    """
-    if state.dataset is None:
-        raise ValueError("No dataset loaded. Create or load a dataset first.")
-
-    workflow = state.workflow
-    steps = workflow.task_list[start_task:end_task]
-    if not steps:
-        raise ValueError("No workflow steps to run.")
-
-    log: list[str] = []
-
-    def emit(line: str) -> None:
-        log.append(line)
-        if on_output is not None:
-            on_output(line)
-
-    n_before = len(state.dataset.zarr_urls)
-    dataset: Dataset = state.dataset
-    t0 = time.perf_counter()
-    last_metrics: RunMetrics | None = None
-
-    try:
-        for offset, step in enumerate(steps):
-            index = start_task + offset
-            if isinstance(step, Task):
-                emit(f"[step {index}] Running task {step.unique_id!r}")
-                metrics = RunMetrics()
-                dataset = step.run(
-                    dataset,
-                    on_output=emit,
-                    cancellation=cancellation,
-                    max_workers=int(max_workers),
-                    metrics=metrics,
-                )
-                last_metrics = metrics
-            else:
-                emit(f"[step {index}] Applying filter {step.type!r}")
-                dataset = step.run(dataset)
-    except RunCancelled:
-        emit("Workflow cancelled.")
-        state.workflow_history.append(
-            WorkflowRunRecord(
-                index=len(state.workflow_history) + 1,
-                name=workflow.name,
-                summary="cancelled",
-                status="cancelled",
-                payload=workflow_to_payload(workflow),
-                start_task=start_task,
-                end_task=end_task,
-            )
-        )
-        return RunResult("cancelled", "cancelled", log)
-    except Exception as exc:
-        emit(f"Workflow run failed: {exc}")
-        state.workflow_history.append(
-            WorkflowRunRecord(
-                index=len(state.workflow_history) + 1,
-                name=workflow.name,
-                summary=f"failed: {exc}",
-                status="failed",
-                payload=workflow_to_payload(workflow),
-                start_task=start_task,
-                end_task=end_task,
-            )
-        )
-        raise
-
-    total = time.perf_counter() - t0
-    state.dataset = dataset
-    n_after = len(dataset.zarr_urls)
-    n_visible = len([zu for zu in dataset.zarr_urls if zu.active])
-    summary = (
-        f"{len(steps)} step(s): {n_before} → {n_after} images ({n_visible} visible)"
-    )
-    state.workflow_history.append(
-        WorkflowRunRecord(
-            index=len(state.workflow_history) + 1,
-            name=workflow.name,
-            summary=summary,
-            payload=workflow_to_payload(workflow),
-            start_task=start_task,
-            end_task=end_task,
-        )
-    )
-    avg = last_metrics.mean_item_seconds if last_metrics else None
-    emit(f"Done. {summary}. Runtime: {total:.1f}s total.")
-    return RunResult(
-        "completed", summary, log, total_seconds=total, mean_item_seconds=avg
-    )

@@ -141,8 +141,31 @@ class WorkflowRunRequest(BaseModel):
     max_workers: int = 1
 
 
-class SessionPayload(BaseModel):
-    """The bundled session document (GET/POST /api/session)."""
+class NewProjectRequest(BaseModel):
+    """Create a new project in a directory (POST /api/project/new).
 
-    # Opaque pass-through of session_to_dict / apply_session_dict.
-    data: dict[str, Any]
+    ``zarr_dir`` is optional: when blank it defaults to a ``zarr_dir`` folder inside
+    the project directory.
+    """
+
+    project_dir: str
+    name: str = "Project"
+    zarr_dir: str = ""
+    description: str = ""
+    max_workers: int = 1
+
+
+class OpenProjectRequest(BaseModel):
+    """Open an existing project directory (POST /api/project/open)."""
+
+    project_dir: str
+
+
+class ProjectInfo(BaseModel):
+    """The open project's metadata (GET /api/project), or None when none is open."""
+
+    project_dir: str
+    name: str
+    description: str = ""
+    zarr_dir: str
+    max_workers: int = 1

@@ -1,5 +1,6 @@
 """Minimal sandbox for running fractal tasks."""
 
+from fractal_lite.__version__ import __version__
 from fractal_lite._dataset import Dataset, ZarrUrl
 from fractal_lite._execution import Cancellation, RunCancelled, RunMetrics
 from fractal_lite._history import (
@@ -17,6 +18,7 @@ from fractal_lite._tasks import ConverterCompoundTask, ParallelTask, Task
 from fractal_lite._workflow import Workflow
 
 __all__ = [
+    "__version__",
     "Cancellation",
     "ConverterCompoundTask",
     "Dataset",

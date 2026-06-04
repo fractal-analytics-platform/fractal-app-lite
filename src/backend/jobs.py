@@ -1,7 +1,7 @@
 """In-process registry of running task jobs, for live log streaming + cancellation.
 
 A run is started by ``POST /api/run`` (returns a ``job_id``), executed on a daemon
-thread, and observed over a WebSocket (``/api/run/{job_id}/ws``). The ``run_service``'s
+thread, and observed over a WebSocket (``/api/run/{job_id}/ws``). The runner's
 ``on_output`` seam pushes each log line onto the job's ``asyncio.Queue`` from the worker
 thread via ``loop.call_soon_threadsafe`` — so the event loop is never blocked and the WS
 streams lines as they appear. A ``Cancellation`` token wired to the same run lets

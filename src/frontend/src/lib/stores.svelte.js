@@ -2,10 +2,12 @@
 // process, single user: a couple of module-level `$state` objects are plenty, and they
 // are mutated in place from any tab so cross-tab refresh is automatic.
 
-import { getDataset } from '$lib/api.js';
+import { getDataset, getProject } from '$lib/api.js';
 
-// The shared dataset (model_dump dict) plus the registered tasks list.
+// The open project (ProjectInfo dict, or null when none is open), the shared dataset
+// (model_dump dict) and the registered tasks list.
 export const store = $state({
+	project: null,
 	dataset: null,
 	tasks: [],
 	dark: false
@@ -35,6 +37,12 @@ export async function refreshDataset() {
 	const d = await getDataset();
 	store.dataset = d.dataset;
 	return store.dataset;
+}
+
+// Re-read the open project (ProjectInfo, or null) from the backend into the store.
+export async function refreshProject() {
+	store.project = await getProject();
+	return store.project;
 }
 
 // --- Typed-path modal (fallback when no native OS dialog is available) ----- //
