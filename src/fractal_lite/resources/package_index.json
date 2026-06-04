@@ -1,0 +1,56 @@
+[
+  {
+    "pkg_name": "fractal-tasks-core",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-tasks-core",
+    "tag": "",
+    "description": "Core Fractal OME-Zarr image-processing tasks."
+  },
+  {
+    "pkg_name": "fractal-uzh-converters",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-uzh-converters",
+    "tag": "",
+    "description": "Collection of converters for HCS microscope and TIFF files to OME-Zarr"
+  },
+  {
+    "pkg_name": "fractal-ilastik-tasks",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-ilastik-tasks",
+    "tag": "",
+    "description": "Collection of Fractal tasks to run headless ilastik workflows."
+  },
+  {
+    "pkg_name": "fractal-cellpose-sam-task",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-cellpose-sam-task",
+    "tag": "",
+    "description": "Fractal task to run Cellpose SAM segmentation workflows."
+  },
+  {
+    "pkg_name": "fractal-lif-converters",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-lif-converters",
+    "tag": "",
+    "description": "Converters for Leica LIF files."
+  },
+  {
+    "pkg_name": "fractal-helper-tasks",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-helper-tasks",
+    "tag": "",
+    "description": "Collection of helper tasks for Fractal workflows."
+  },
+  {
+    "pkg_name": "fractal-microsam-segmentation-task",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-microsam-segmentation-task",
+    "tag": "",
+    "description": "Fractal task to run MicroSAM segmentation workflows."
+  },
+  {
+    "pkg_name": "fractal-cellpose-2-segmentation-task",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-cellpose-2-segmentation-task",
+    "tag": "",
+    "description": "Fractal task to run Cellpose 2 segmentation workflows."
+  },
+  {
+    "pkg_name": "fractal-cellpose-3-segmentation-task",
+    "repo_url": "https://github.com/fractal-analytics-platform/fractal-cellpose-3-segmentation-task",
+    "tag": "",
+    "description": "Fractal task to run Cellpose 3 segmentation workflows."
+  }
+]

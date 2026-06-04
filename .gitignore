@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pixi/
+collected/
+# Vendored fractal-web clone (regenerated via the `clone-fractal-web` pixi task).
+fractal-web-clone/
+src/frontend/node_modules/
+src/frontend/build/
+src/frontend/.svelte-kit/
+state.json
+*.zarr
+.cache/
