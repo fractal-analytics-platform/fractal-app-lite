@@ -43,6 +43,8 @@
 
 	// Run state.
 	let maxWorkers = $state(1);
+	let runFirst = $state(0); // inclusive start index
+	let runLast = $state(/** @type {number | null} */ (null)); // inclusive end index; null tracks "last step"
 	let running = $state(false);
 	let jobId = $state(null);
 	let socket = null;
@@ -55,6 +57,16 @@
 	let history = $state([]);
 
 	const selectedStep = $derived(selectedIndex == null ? null : steps[selectedIndex] ?? null);
+
+	// Keep the run range valid as steps change: clamp both indices in bounds, default
+	// "Last step" to the final step, and ensure Last step >= First step.
+	$effect(() => {
+		if (steps.length === 0) return;
+		const max = steps.length - 1;
+		if (runFirst > max) runFirst = max;
+		if (runLast == null || runLast > max) runLast = max;
+		if (runLast < runFirst) runLast = runFirst;
+	});
 
 	function stepLabel(step) {
 		if (step.kind === 'task') return step.task_name;
@@ -528,29 +540,41 @@
 </div>
 
 <!-- Run controls -->
-<div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
 	{#if running}
 		<button class="btn btn-danger" onclick={cancel}>
 			<i class="bi bi-stop-fill"></i> Cancel
 		</button>
 		<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Running…</span></div>
 	{:else}
-		<button class="btn btn-success" onclick={() => doRun(0, null)} disabled={!store.dataset || steps.length === 0}>
-			<i class="bi bi-play-fill"></i> Run all
-		</button>
-		<button class="btn btn-outline-success" onclick={() => doRun(selectedIndex, null)}
-			disabled={!store.dataset || selectedIndex == null} title="Run from the selected step to the end">
-			<i class="bi bi-skip-forward"></i> Run from selected
-		</button>
-		<button class="btn btn-outline-success" onclick={() => doRun(0, selectedIndex + 1)}
-			disabled={!store.dataset || selectedIndex == null} title="Run from the start up to & including the selected step">
-			<i class="bi bi-skip-end"></i> Run up to selected
+		<button class="btn btn-success" onclick={() => doRun(runFirst, (runLast ?? steps.length - 1) + 1)} disabled={!store.dataset || steps.length === 0}>
+			<i class="bi bi-play-fill"></i> Run
 		</button>
 	{/if}
-	<div>
-		<label class="form-label small mb-0" for="wf-max-workers">Workers</label>
-		<input id="wf-max-workers" type="number" min="1" step="1" class="form-control form-control-sm" style="width: 6rem;" bind:value={maxWorkers} />
+	<div class="input-group input-group-sm" style="width: auto;">
+		<label class="input-group-text" for="wf-max-workers">Workers</label>
+		<input id="wf-max-workers" type="number" min="1" step="1" class="form-control" style="width: 5rem;" bind:value={maxWorkers} />
 	</div>
+	{#if !running}
+		<div class="input-group input-group-sm" style="width: auto; max-width: 14rem;">
+			<span class="input-group-text" title="First step to run"><i class="bi bi-skip-start-fill"></i></span>
+			<select class="form-select" aria-label="First step to run" bind:value={runFirst} disabled={steps.length === 0}>
+				{#each steps as step, i (i)}
+					<option value={i}>{i + 1}. {stepLabel(step)}</option>
+				{/each}
+			</select>
+		</div>
+		<div class="input-group input-group-sm" style="width: auto; max-width: 14rem;">
+			<span class="input-group-text" title="Last step to run"><i class="bi bi-skip-end-fill"></i></span>
+			<select class="form-select" aria-label="Last step to run" bind:value={runLast} disabled={steps.length === 0}>
+				{#each steps as step, i (i)}
+					{#if i >= runFirst}
+						<option value={i}>{i + 1}. {stepLabel(step)}</option>
+					{/if}
+				{/each}
+			</select>
+		</div>
+	{/if}
 </div>
 
 <!-- Output -->

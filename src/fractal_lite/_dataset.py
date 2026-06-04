@@ -35,7 +35,7 @@ class ZarrUrl(BaseModel):
 
         A declared key only excludes the image when the image carries that key
         with a *differing* value. A missing key counts as a match, so the image
-        is still run on (this is the opposite of ``TypeFilter``, which hides
+        is still run on (this is the opposite of ``TypeFilter``, which deactivates
         images missing the key). All declared keys must match (AND).
         """
         for key, value in input_types.items():
@@ -178,12 +178,14 @@ class Dataset(BaseModel):
             new_urls.append(zu.model_copy(update={"types": types, "active": active}))
         return self.model_copy(update={"zarr_urls": new_urls})
 
+    def clear_images(self) -> "Dataset":
+        """Return a copy with all images removed (but the same zarr_dir)."""
+        return self.model_copy(update={"zarr_urls": []})
+
     def remove_zarr_url(self, url: str) -> "Dataset":
         """Return a copy with the image at ``url`` removed (no-op if absent)."""
-        return Dataset(
-            name=self.name,
-            zarr_dir=self.zarr_dir,
-            zarr_urls=[zu for zu in self.zarr_urls if zu.url != url],
+        return self.model_copy(
+            update={"zarr_urls": [zu for zu in self.zarr_urls if zu.url != url]}
         )
 
     def from_raw_urls(self, urls: list[str]) -> "Dataset":
@@ -195,12 +197,10 @@ class Dataset(BaseModel):
                 new_urls.extend(parsed)
             else:
                 failed.append(url)
-        # TODO log failures somewhere instead of just printing
+
         if failed:
-            print(
-                "Warning: could not open as OME-Zarr image or plate:\n"
-                + "\n".join(failed)
-            )
+            # TODO log failures somewhere instead of just printing
+            pass
         return self.from_zarr_urls(new_urls)
 
     def to_csv(self, path: str | Path) -> None:

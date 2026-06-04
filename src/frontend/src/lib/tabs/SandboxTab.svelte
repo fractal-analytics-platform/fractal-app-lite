@@ -430,7 +430,7 @@
 </div>
 
 <!-- Run controls -->
-<div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
 	{#if running}
 		<button class="btn btn-danger" onclick={cancel}>
 			<i class="bi bi-stop-fill"></i> Cancel
@@ -441,9 +441,9 @@
 			<i class="bi bi-play-fill"></i> Run
 		</button>
 	{/if}
-	<div>
-		<label class="form-label small mb-0" for="max-workers">Workers</label>
-		<input id="max-workers" type="number" min="1" step="1" class="form-control form-control-sm" style="width: 6rem;" bind:value={maxWorkers} />
+	<div class="input-group input-group-sm" style="width: auto;">
+		<label class="input-group-text" for="max-workers">Workers</label>
+		<input id="max-workers" type="number" min="1" step="1" class="form-control" style="width: 5rem;" bind:value={maxWorkers} />
 	</div>
 	<button class="btn btn-sm btn-outline-secondary" onclick={doExport}>
 		<i class="bi bi-download"></i> Export params

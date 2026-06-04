@@ -5,7 +5,8 @@
 		addDatasetStore,
 		removeDatasetStore,
 		loadDatasetCsv,
-		saveDatasetCsv
+		saveDatasetCsv,
+		clearDatasetImages
 	} from '$lib/api.js';
 	import { store, notify } from '$lib/stores.svelte.js';
 	import { pickOpenDirectory, pickOpenFile, pickSaveFile } from '$lib/filepick.js';
@@ -61,6 +62,23 @@
 			const d = await removeDatasetStore(url);
 			store.dataset = d.dataset;
 			notify(`Removed ${url}`, 'positive');
+		} catch (e) {
+			notify(String(e.message ?? e), 'negative');
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function clearImages() {
+		if (!store.dataset) {
+			notify('No dataset to clear.', 'warning');
+			return;
+		}
+		busy = true;
+		try {
+			const d = await clearDatasetImages();
+			store.dataset = d.dataset;
+			notify('Cleared all images', 'positive');
 		} catch (e) {
 			notify(String(e.message ?? e), 'negative');
 		} finally {
@@ -149,6 +167,9 @@
 			</button>
 			<button class="btn btn-outline-secondary" onclick={saveCsv} disabled={busy}>
 				<i class="bi bi-download"></i> Save CSV
+			</button>
+			<button class="btn btn-outline-secondary" onclick={clearImages} disabled={busy}>
+				<i class="bi bi-trash"></i> Clear
 			</button>
 		</div>
 	</div>

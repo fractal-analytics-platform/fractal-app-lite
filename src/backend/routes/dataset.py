@@ -198,6 +198,15 @@ def remove_store(
     return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
 
 
+@router.post("/clear-images", response_model=DatasetPayload)
+def clear_images(state: AppState = Depends(get_state)) -> DatasetPayload:
+    """Remove all images from the current dataset (keep the same zarr_dir)."""
+    if state.dataset is None:
+        raise HTTPException(status_code=400, detail="No dataset loaded.")
+    state.dataset = state.dataset.clear_images()
+    return DatasetPayload(dataset=state.dataset.model_dump(mode="json"))
+
+
 @router.post("/save-csv")
 def save_csv(payload: PathPayload, state: AppState = Depends(get_state)) -> dict:
     """Write the shared dataset to a CSV file on disk (reuses Dataset.to_csv)."""

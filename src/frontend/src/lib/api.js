@@ -89,6 +89,10 @@ export function saveDatasetCsv(path) {
 	return post('/api/dataset/save-csv', { path });
 }
 
+export function clearDatasetImages() {
+	return post('/api/dataset/clear-images');
+}
+
 export function previewDataset(filters, type_filters = []) {
 	return post('/api/dataset/preview', { filters, type_filters });
 }
