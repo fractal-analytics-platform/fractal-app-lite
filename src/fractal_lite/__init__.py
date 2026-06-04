@@ -12,6 +12,7 @@ from fractal_lite._history import (
 from fractal_lite._package_index import PackageIndexEntry
 from fractal_lite._project import Project, ProjectIndex
 from fractal_lite._registry import tasks_registry
+from fractal_lite._runner import RunResult, run_task, run_workflow
 from fractal_lite._tasks import ConverterCompoundTask, ParallelTask, Task
 from fractal_lite._workflow import Workflow
 
@@ -26,6 +27,7 @@ __all__ = [
     "ProjectIndex",
     "RunCancelled",
     "RunMetrics",
+    "RunResult",
     "SandboxHistory",
     "SandboxRunRecord",
     "Task",
@@ -33,5 +35,7 @@ __all__ = [
     "WorkflowHistory",
     "WorkflowRunRecord",
     "ZarrUrl",
+    "run_task",
+    "run_workflow",
     "tasks_registry",
 ]
