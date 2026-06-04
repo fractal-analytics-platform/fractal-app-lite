@@ -15,8 +15,8 @@ import pytest
 if TYPE_CHECKING:
     import subprocess
 
-from fractal_lite import _tasks as tasks_mod
-from fractal_lite._tasks import (
+from fractal_lite import _execution as exec_mod
+from fractal_lite._execution import (
     Cancellation,
     RunCancelled,
     RunMetrics,
@@ -46,7 +46,7 @@ def test_runs_concurrently_and_preserves_order(monkeypatch):
             active -= 1
         return {"i": kwargs["i"]}
 
-    monkeypatch.setattr(tasks_mod, "_run_executable", fake_exec)
+    monkeypatch.setattr(exec_mod, "_run_executable", fake_exec)
 
     results = _run_parallel_task(_items(8), "par.py", SRC, PYPROJECT, max_workers=4)
 
@@ -72,7 +72,7 @@ def test_single_worker_is_sequential(monkeypatch):
             active -= 1
         return {"i": kwargs["i"]}
 
-    monkeypatch.setattr(tasks_mod, "_run_executable", fake_exec)
+    monkeypatch.setattr(exec_mod, "_run_executable", fake_exec)
 
     results = _run_parallel_task(_items(4), "par.py", SRC, PYPROJECT, max_workers=1)
 
@@ -91,7 +91,7 @@ def test_all_items_attempted_then_aggregated_error(monkeypatch):
             raise RuntimeError(f"boom {kwargs['i']}")
         return {"i": kwargs["i"]}
 
-    monkeypatch.setattr(tasks_mod, "_run_executable", fake_exec)
+    monkeypatch.setattr(exec_mod, "_run_executable", fake_exec)
 
     with pytest.raises(RuntimeError) as excinfo:
         _run_parallel_task(_items(5), "par.py", SRC, PYPROJECT, max_workers=3)
@@ -109,7 +109,7 @@ def test_cancelled_before_start_raises_and_runs_nothing(monkeypatch):
         attempted.append(kwargs["i"])
         return {"i": kwargs["i"]}
 
-    monkeypatch.setattr(tasks_mod, "_run_executable", fake_exec)
+    monkeypatch.setattr(exec_mod, "_run_executable", fake_exec)
 
     cancellation = Cancellation()
     cancellation.cancel()
@@ -132,7 +132,7 @@ def test_metrics_record_measured_per_item_durations(monkeypatch):
         time.sleep(0.05)
         return {"i": kwargs["i"]}
 
-    monkeypatch.setattr(tasks_mod, "_run_executable", fake_exec)
+    monkeypatch.setattr(exec_mod, "_run_executable", fake_exec)
 
     metrics = RunMetrics()
     _run_parallel_task(
@@ -152,7 +152,7 @@ def test_metrics_record_even_when_item_fails(monkeypatch):
         time.sleep(0.01)
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(tasks_mod, "_run_executable", fake_exec)
+    monkeypatch.setattr(exec_mod, "_run_executable", fake_exec)
 
     metrics = RunMetrics()
     with pytest.raises(RuntimeError):

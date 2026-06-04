@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from fractal_lite._collect import (
+from fractal_lite._registry import (
     TasksRegistry,
     TasksRegistryModel,
     tasks_registry,

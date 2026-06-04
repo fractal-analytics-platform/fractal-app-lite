@@ -146,12 +146,12 @@ def save_registry(req: RegistryPathRequest) -> dict:
 
 @router.post("/registry/load", response_model=list[TaskSummary])
 def load_registry(req: RegistryPathRequest) -> list[TaskSummary]:
-    """Load a registry from JSON and re-collect its task sources."""
+    """Load a registry from JSON, rebuilding its tasks from the stored sources."""
     if not Path(req.path).is_file():
         raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
     try:
+        # load_from_json re-collects from the sources itself.
         tasks_registry.load_from_json(req.path)
-        tasks_registry.recollect_tasks()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return [_summary(t) for t in tasks_registry.tasks]

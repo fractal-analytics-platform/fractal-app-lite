@@ -170,19 +170,16 @@ def test_registry_saved_sources_only_and_rebuilt(registry, tmp_path, monkeypatch
     assert dst.workflow.task_list[0].task.args_schema_parallel == _BIG_SCHEMA
 
 
-def test_package_kwargs_round_trip(registry, tmp_path, monkeypatch):
+def test_registry_ignores_task_kwargs(registry, tmp_path, monkeypatch):
+    """The registry holds templates only — task arguments are never stored."""
     task = _register_dir_task(registry, tmp_path, monkeypatch)
-    # Configure kwargs on the registered package; a bare re-collection would drop
-    # them, so the bundle must carry them separately and re-apply on load.
     registry.add_task(
         task.model_copy(update={"kwargs_parallel": {"threshold": 7}}), overwrite=True
     )
 
-    path = tmp_path / "state.json"
-    session.save_session(path, state=AppState())
-    session.load_session(path, state=AppState())
-
-    assert registry.get_task(task.unique_id).kwargs_parallel == {"threshold": 7}
+    stored = registry.get_task(task.unique_id)
+    assert stored.kwargs_parallel is None
+    assert stored.kwargs_non_parallel is None
 
 
 def test_long_summary_is_truncated(registry):

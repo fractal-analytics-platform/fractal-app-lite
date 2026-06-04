@@ -3,10 +3,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from fractal_lite._collect import _normalize_version, tasks_registry
+from fractal_lite._collect import _normalize_version
 from fractal_lite._dataset import Dataset
 from fractal_lite._filters import Filter
 from fractal_lite._package_index import find_package
+from fractal_lite._registry import tasks_registry
 from fractal_lite._tasks import Task
 
 

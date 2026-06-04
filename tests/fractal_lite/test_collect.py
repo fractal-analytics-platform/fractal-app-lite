@@ -242,7 +242,9 @@ def test_collect_from_gitrelease(converters_targz, tmp_path, monkeypatch):
 def test_registry_add_get_and_duplicate(registry, tmp_path):
     task = _sample_task(tmp_path)
     registry.add_task(task)
-    assert registry.get_task("Supported Parallel [pkg]") is task
+    # The registry stores a normalized copy (templates carry no kwargs), so
+    # compare by value rather than identity.
+    assert registry.get_task("Supported Parallel [pkg]") == task
     with pytest.raises(ValueError, match="already exists"):
         registry.add_task(task)
     # overwrite replaces silently.
@@ -269,8 +271,8 @@ def test_registry_same_name_different_package_coexist(registry, tmp_path):
     )
     registry.add_task(a)
     registry.add_task(b)
-    assert registry.get_task("Supported Parallel [pkg_a]") is a
-    assert registry.get_task("Supported Parallel [pkg_b]") is b
+    assert registry.get_task("Supported Parallel [pkg_a]") == a
+    assert registry.get_task("Supported Parallel [pkg_b]") == b
     assert len(registry.tasks) == 2
 
 
@@ -279,18 +281,26 @@ def test_registry_get_missing_raises(registry):
         registry.get_task("nope")
 
 
-def test_registry_dump_load_round_trip(registry, tmp_path):
-    registry.add_task(_sample_task(tmp_path))
+def test_registry_dump_load_round_trip(registry, tmp_path, monkeypatch):
+    # The dump is sources-only; packages are rebuilt from the sources on load, so
+    # round-trip a real, re-collectable directory (stub the pixi version probe).
+    monkeypatch.setattr(_collect, "_version_from_pixi_env", lambda start: "1.0.0")
+    pkg = tmp_path / "pkg"
+    _write_manifest(pkg, [_PARALLEL_TASK])
+    registry.collect_from_directory(pkg)
+    unique_id = registry.tasks[0].unique_id
+
     out = tmp_path / "registry.json"
     registry.dump_to_json(out)
+    # Sources-only: the packages (and their schemas) are not persisted.
+    assert "packages" not in json.loads(out.read_text())
+
     registry.load_from_json(out)
-    assert (
-        registry.get_task("Supported Parallel [pkg]").task.name == "Supported Parallel"
-    )
+    assert registry.get_task(unique_id).task.name == "Supported Parallel"
 
 
 def test_load_recomputes_version(registry, tmp_path, monkeypatch):
-    """A bare load re-derives the version instead of trusting the dumped value."""
+    """A load re-derives each source's version instead of trusting the dumped value."""
     task = Task(
         task=_PARALLEL_TASK,
         source_info=DirectoryTaskSource(
@@ -307,12 +317,11 @@ def test_load_recomputes_version(registry, tmp_path, monkeypatch):
 
     # The locally-installed package has since been upgraded.
     monkeypatch.setattr(_collect, "_version_from_pixi_env", lambda start: "2.0.0")
-    registry.load_from_json(out)
+    # load_from_dict refreshes versions without re-collecting (no source on disk).
+    registry.load_from_dict(json.loads(out.read_text()))
 
-    loaded = registry.get_task("Supported Parallel [pkg]")
-    assert loaded.version == "2.0.0"
-    assert loaded.source_info.version == "2.0.0"
-    # The sources set is refreshed too, so a later recollect starts from 2.0.0.
+    # The stored sources are refreshed, so a later recollect starts from 2.0.0.
+    assert registry._registry.sources
     assert all(s.version == "2.0.0" for s in registry._registry.sources)
 
 

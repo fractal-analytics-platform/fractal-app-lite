@@ -1,8 +1,9 @@
+from collections.abc import Callable
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from fractal_lite._dataset import Dataset
+from fractal_lite._dataset import Dataset, ZarrUrl
 
 
 class BaseFilter(BaseModel):
@@ -11,6 +12,16 @@ class BaseFilter(BaseModel):
             "BaseFilter is an abstract class and cannot be run directly."
         )
 
+    def _hide_where(
+        self, dataset: Dataset, keep: Callable[[ZarrUrl], bool]
+    ) -> Dataset:
+        """Hide every image for which ``keep`` is false, leaving the rest as-is."""
+        new_urls = [
+            zu if keep(zu) else zu.model_copy(update={"hidden": True})
+            for zu in dataset.zarr_urls
+        ]
+        return dataset.model_copy(update={"zarr_urls": new_urls})
+
 
 class AttributeFilter(BaseFilter):
     type: Literal["attribute"] = "attribute"
@@ -18,12 +29,10 @@ class AttributeFilter(BaseFilter):
     value: str
 
     def run(self, dataset: Dataset) -> Dataset:
-        new_urls = []
-        for zarr_url in dataset.zarr_urls:
-            if str(zarr_url.attributes.get(self.attribute)) != self.value:
-                zarr_url = zarr_url.model_copy(update={"hidden": True})
-            new_urls.append(zarr_url)
-        return dataset.model_copy(update={"zarr_urls": new_urls})
+        # Attributes can be any type, so coerce to str before comparing.
+        return self._hide_where(
+            dataset, lambda zu: str(zu.attributes.get(self.attribute)) == self.value
+        )
 
 
 class TypeFilter(BaseFilter):
@@ -32,13 +41,10 @@ class TypeFilter(BaseFilter):
     value: bool
 
     def run(self, dataset: Dataset) -> Dataset:
-        new_urls = []
-        for zarr_url in dataset.zarr_urls:
-            # Types are booleans, so compare directly (no string coercion).
-            if zarr_url.types.get(self.key) != self.value:
-                zarr_url = zarr_url.model_copy(update={"hidden": True})
-            new_urls.append(zarr_url)
-        return dataset.model_copy(update={"zarr_urls": new_urls})
+        # Types are booleans, so compare directly (no string coercion).
+        return self._hide_where(
+            dataset, lambda zu: zu.types.get(self.key) == self.value
+        )
 
 
 # Discriminated union of concrete filters, so workflow steps round-trip to/from

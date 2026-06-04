@@ -95,8 +95,6 @@ def session_to_dict(state: AppState | None = None) -> dict[str, Any]:
         "workflow_history": workflow_history,
         "max_workers": state.max_workers,
         "registry": tasks_registry.to_sources_dict(),
-        # Per-package kwargs a bare re-collection would otherwise drop.
-        "package_kwargs": tasks_registry.package_kwargs(),
         "workflow": workflow,
     }
 
@@ -163,22 +161,20 @@ def apply_session_dict(data: dict[str, Any], state: AppState | None = None) -> N
     # Optional (added after v1); absent in older bundles → empty workflow.
     workflow = data.get("workflow")
     state.workflow = Workflow.model_validate(workflow) if workflow else Workflow()
-    _rehydrate(state, data)
+    _rehydrate(state)
 
 
-def _rehydrate(state: AppState, data: dict[str, Any]) -> None:
+def _rehydrate(state: AppState) -> None:
     """Rebuild data omitted from a slim bundle, in place.
 
-    Re-collects the registry's ``packages`` from its ``sources``, re-applies any
-    saved per-package kwargs, then re-resolves the current workflow's task schemas
-    from the refreshed registry. Best-effort throughout: a moved or unavailable
-    source must not block restoring the rest of the session (a sources-only bundle
-    that fails to re-collect just leaves those tasks degraded, not the whole load).
+    Re-collects the registry's ``packages`` from its ``sources``, then re-resolves
+    the current workflow's task schemas from the refreshed registry. Best-effort:
+    a moved or unavailable source must not block restoring the rest of the session
+    (a sources-only bundle that fails to re-collect just leaves those tasks
+    degraded, not the whole load).
     """
     with contextlib.suppress(Exception):
         tasks_registry.recollect_tasks()
-    with contextlib.suppress(Exception):
-        tasks_registry.apply_package_kwargs(data.get("package_kwargs", {}))
     _resolve_workflow_schemas(state)
 
 

@@ -23,7 +23,7 @@ def client():
 
 @pytest.fixture
 def seeded_client(converters_targz):
-    """A client whose registry has one collected package (startup no longer seeds it)."""
+    """A client whose registry has one collected package (startup no longer seeds)."""
     tasks_registry.collect_from_targz(converters_targz, overwrite=True)
     with TestClient(app) as c:
         yield c
