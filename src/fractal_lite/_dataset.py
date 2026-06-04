@@ -6,7 +6,7 @@ import polars as pl
 from ngio import open_ome_zarr_container, open_ome_zarr_plate
 from pydantic import BaseModel, Field, model_validator
 
-_FIXED_COLS = {"zarr_url", "hidden"}
+_FIXED_COLS = {"zarr_url", "active"}
 # CSV column prefix marking a ``types`` entry, so attributes and types round-trip
 # as distinct columns (e.g. ``type:is_3D``).
 _TYPE_PREFIX = "type:"
@@ -28,7 +28,7 @@ class ZarrUrl(BaseModel):
     url: str
     attributes: dict[str, Any]
     types: dict[str, bool] = Field(default_factory=dict)
-    hidden: bool = False
+    active: bool = True
 
     def matches_input_types(self, input_types: dict[str, bool]) -> bool:
         """Whether this image satisfies a task's declared ``input_types``.
@@ -114,7 +114,7 @@ class Dataset(BaseModel):
                 url=update.zarr_url,
                 attributes=attributes,
                 types=types,
-                hidden=False,
+                active=True,
             )
             zarr_urls.append(zarr_url)
         return self.from_zarr_urls(zarr_urls)
@@ -154,9 +154,9 @@ class Dataset(BaseModel):
 
         For every image the task touched (run urls and produced), each declared
         output key is set to its value on produced images and to the opposite
-        value on the others; an image carrying the opposite value is hidden.
-        Only the declared keys are touched, only ``hidden=True`` is ever set
-        (never un-hidden), and images outside the touched set are left untouched.
+        value on the others; an image carrying the opposite value is deactivated.
+        Only the declared keys are touched, only ``active=False`` is ever set
+        (never re-activated), and images outside the touched set are left untouched.
         """
         if not output_types:
             return self
@@ -169,13 +169,13 @@ class Dataset(BaseModel):
                 continue
             is_produced = zu.url in produced
             types = dict(zu.types)
-            hidden = zu.hidden
+            active = zu.active
             for key, value in output_types.items():
                 assigned = value if is_produced else (not value)
                 types[key] = assigned
                 if assigned != value:
-                    hidden = True
-            new_urls.append(zu.model_copy(update={"types": types, "hidden": hidden}))
+                    active = False
+            new_urls.append(zu.model_copy(update={"types": types, "active": active}))
         return self.model_copy(update={"zarr_urls": new_urls})
 
     def remove_zarr_url(self, url: str) -> "Dataset":
@@ -206,7 +206,7 @@ class Dataset(BaseModel):
     def to_csv(self, path: str | Path) -> None:
         rows = []
         for zu in self.zarr_urls:
-            row: dict[str, Any] = {"zarr_url": zu.url, "hidden": zu.hidden}
+            row: dict[str, Any] = {"zarr_url": zu.url, "active": zu.active}
             row.update(zu.attributes)
             # Types are written as prefixed columns so they reload into ``types``.
             row.update({f"{_TYPE_PREFIX}{k}": v for k, v in zu.types.items()})
@@ -239,7 +239,7 @@ class Dataset(BaseModel):
             zarr_urls.append(
                 ZarrUrl(
                     url=row["zarr_url"],
-                    hidden=row["hidden"],
+                    active=row["active"],
                     attributes=attributes,
                     types=types,
                 )

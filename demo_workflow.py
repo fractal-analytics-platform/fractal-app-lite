@@ -38,7 +38,7 @@ def show(title: str, ds: Dataset) -> None:
     if not ds.zarr_urls:
         print("  (no images)")
     for zu in ds.zarr_urls:
-        state = "HIDDEN " if zu.hidden else "visible"
+        state = "active  " if zu.active else "INACTIVE"
         print(f"  [{state}] {zu.url}  attrs={zu.attributes} types={zu.types}")
     print()
 

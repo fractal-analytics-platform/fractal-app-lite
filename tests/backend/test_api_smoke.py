@@ -158,13 +158,13 @@ def test_preview_applies_filters(client):
                 "url": "/tmp/z/A",
                 "attributes": {"well": "A"},
                 "types": {"is_3D": True},
-                "hidden": False,
+                "active": True,
             },
             {
                 "url": "/tmp/z/B",
                 "attributes": {"well": "B"},
                 "types": {"is_3D": False},
-                "hidden": False,
+                "active": True,
             },
         ],
     }
@@ -259,8 +259,8 @@ def test_remove_store_drops_image(client):
         "name": "demo",
         "zarr_dir": "/tmp/z",
         "zarr_urls": [
-            {"url": "/tmp/z/A", "attributes": {}, "hidden": False},
-            {"url": "/tmp/z/B", "attributes": {}, "hidden": False},
+            {"url": "/tmp/z/A", "attributes": {}, "active": True},
+            {"url": "/tmp/z/B", "attributes": {}, "active": True},
         ],
     }
     assert client.post("/api/dataset", json={"dataset": ds}).status_code == 200

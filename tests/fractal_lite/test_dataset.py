@@ -16,13 +16,13 @@ def _dataset() -> Dataset:
                 url="/data/z/A/0",
                 attributes={"plate": "p1", "well": "A"},
                 types={"is_3D": True},
-                hidden=False,
+                active=True,
             ),
             ZarrUrl(
                 url="/data/z/B/0",
                 attributes={"plate": "p1", "well": "B"},
                 types={"is_3D": False},
-                hidden=True,
+                active=False,
             ),
         ],
     )
@@ -76,7 +76,7 @@ def test_csv_round_trip(tmp_path):
         return sorted(
             (
                 zu.url,
-                zu.hidden,
+                zu.active,
                 tuple(sorted(zu.attributes.items())),
                 tuple(sorted(zu.types.items())),
             )

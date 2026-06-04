@@ -20,7 +20,7 @@ def _app_state() -> AppState:
         zarr_urls=[
             # Mixed attribute value-types that CSV would coerce but JSON preserves.
             ZarrUrl(url="/z/a", attributes={"plate": "p1", "well": 2, "is3D": True}),
-            ZarrUrl(url="/z/b", attributes={"plate": "p1"}, hidden=True),
+            ZarrUrl(url="/z/b", attributes={"plate": "p1"}, active=False),
         ],
     )
     history = [

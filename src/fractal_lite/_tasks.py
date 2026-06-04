@@ -52,8 +52,7 @@ def _run_compound(
         cancellation=cancellation,
     )
     per_item_kwargs = [
-        {**item, **(kwargs_parallel or {})}
-        for item in init_out["parallelization_list"]
+        {**item, **(kwargs_parallel or {})} for item in init_out["parallelization_list"]
     ]
     results = _run_parallel_task(
         per_item_kwargs,
@@ -404,13 +403,13 @@ class Task(BaseModel):
         )
         kwp = kwargs_parallel if kwargs_parallel is not None else self.kwargs_parallel
 
-        # Input-types: run only on the non-hidden images that match (converters
+        # Input-types: run only on the active images that match (converters
         # consume ``zarr_dir`` instead, so they have no input images).
         if self.task.consumes_images:
             run_urls = [
                 zu.url
                 for zu in dataset.zarr_urls
-                if not zu.hidden and zu.matches_input_types(self.task.input_types)
+                if zu.active and zu.matches_input_types(self.task.input_types)
             ]
         else:
             run_urls = []

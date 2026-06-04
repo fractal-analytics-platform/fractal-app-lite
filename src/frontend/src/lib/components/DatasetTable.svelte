@@ -1,6 +1,6 @@
 <script>
-	// Read-only image table: zarr_url, hidden badge, dynamic attribute columns, image +
-	// hidden counts, client-side quick-search, pagination, and per-row open-in-napari.
+	// Read-only image table: zarr_url, active badge, dynamic attribute columns, image +
+	// active counts, client-side quick-search, pagination, and per-row open-in-napari.
 	import { openInNapari } from '$lib/api.js';
 	import { notify } from '$lib/stores.svelte.js';
 
@@ -27,7 +27,7 @@
 		return keys;
 	});
 
-	const nHidden = $derived(zarrUrls.filter((zu) => zu.hidden).length);
+	const nActive = $derived(zarrUrls.filter((zu) => zu.active).length);
 
 	const filtered = $derived.by(() => {
 		const q = search.trim().toLowerCase();
@@ -71,7 +71,7 @@
 			<strong>{dataset.name}</strong> — <code>{dataset.zarr_dir}</code>
 		</span>
 		<span class="badge text-bg-light">{zarrUrls.length} image(s)</span>
-		<span class="badge text-bg-light">{nHidden} hidden</span>
+		<span class="badge text-bg-light">{nActive} active</span>
 		<input
 			class="form-control form-control-sm ms-auto"
 			style="max-width: 16rem;"
@@ -86,7 +86,7 @@
 				<tr>
 					<th style="width: 3rem;"></th>
 					<th>zarr_url</th>
-					<th class="text-center">hidden</th>
+					<th class="text-center">active</th>
 					{#each attrKeys as k (k)}
 						<th>{k}</th>
 					{/each}
@@ -110,8 +110,8 @@
 						</td>
 						<td class="font-monospace small text-break">{zu.url}</td>
 						<td class="text-center">
-							<span class="badge {zu.hidden ? 'text-bg-danger' : 'text-bg-success'}">
-								{zu.hidden}
+							<span class="badge {zu.active ? 'text-bg-success' : 'text-bg-danger'}">
+								{zu.active}
 							</span>
 						</td>
 						{#each attrKeys as k (k)}

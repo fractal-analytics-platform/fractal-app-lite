@@ -300,7 +300,7 @@
 	<div class="small">
 		<strong>Warning!</strong> The Sandbox page lets you run tasks independently of the workflow.
 		Only the task's <strong>newly produced images</strong> are added back to the shared dataset —
-		existing images' <code>hidden</code> state and types are never modified by a run. So running
+		existing images' <code>active</code> state and types are never modified by a run. So running
 		tasks one-by-one here is <strong>not</strong> the same as a chained workflow. Filters apply to
 		a <em>fresh copy</em> of the dataset; use the filters below to choose which images each run
 		processes.
@@ -328,7 +328,7 @@
 	<div class="card-body">
 		{#if filters.length === 0 && typeFilters.length === 0}
 			<p class="text-body-secondary small mb-2">
-				No filters — the task runs on all (non-hidden) images.
+				No filters — the task runs on all (active) images.
 			</p>
 		{/if}
 		{#each filters as f, i (i)}

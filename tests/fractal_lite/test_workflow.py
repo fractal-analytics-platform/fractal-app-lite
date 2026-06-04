@@ -83,13 +83,13 @@ def test_with_output_types_assigns_and_hides():
 
     # Produced -> output value, visible.
     assert out["/z/2a"].types == {"is_3D": False}
-    assert out["/z/2a"].hidden is False
-    # Run-but-not-produced -> opposite value, hidden; other keys untouched.
+    assert out["/z/2a"].active is True
+    # Run-but-not-produced -> opposite value, deactivated; other keys untouched.
     assert out["/z/3a"].types == {"is_3D": True, "ch": True}
-    assert out["/z/3a"].hidden is True
-    assert out["/z/3b"].hidden is True
+    assert out["/z/3a"].active is False
+    assert out["/z/3b"].active is False
     # Outside the touched set -> entirely untouched.
-    assert out["/z/other"].hidden is False
+    assert out["/z/other"].active is True
     assert out["/z/other"].types == {"is_3D": False}
 
 
@@ -98,16 +98,16 @@ def test_with_output_types_no_produced_assigns_to_run_urls():
     out = _by_url(ds.with_output_types(["/z/a"], [], {"is_3D": False}))
     # No updates: the input image gets the output value and stays visible.
     assert out["/z/a"].types == {"is_3D": False}
-    assert out["/z/a"].hidden is False
+    assert out["/z/a"].active is True
 
 
-def test_with_output_types_never_unhides():
+def test_with_output_types_never_reactivates():
     ds = _dataset(
-        [{"url": "/z/a", "attributes": {}, "types": {"is_3D": False}, "hidden": True}]
+        [{"url": "/z/a", "attributes": {}, "types": {"is_3D": False}, "active": False}]
     )
     out = _by_url(ds.with_output_types(["/z/a"], ["/z/a"], {"is_3D": False}))
-    # Produced + matching value, but an already-hidden image is never revealed.
-    assert out["/z/a"].hidden is True
+    # Produced + matching value, but an already-inactive image is never re-activated.
+    assert out["/z/a"].active is False
 
 
 # --- Workflow.run integration ----------------------------------------------
@@ -149,15 +149,15 @@ def test_workflow_input_selection_and_output_types(monkeypatch, tmp_path):
     assert [it["zarr_url"] for it in captured["items"]] == ["/z/3a", "/z/missing"]
     # Produced 2D projections are visible with the output value.
     assert out["/z/3a/proj"].types == {"is_3D": False}
-    assert out["/z/3a/proj"].hidden is False
-    assert out["/z/missing/proj"].hidden is False
-    # Originals the task ran on get the opposite value and are hidden.
-    assert out["/z/3a"].types == {"is_3D": True} and out["/z/3a"].hidden is True
+    assert out["/z/3a/proj"].active is True
+    assert out["/z/missing/proj"].active is True
+    # Originals the task ran on get the opposite value and are deactivated.
+    assert out["/z/3a"].types == {"is_3D": True} and out["/z/3a"].active is False
     assert out["/z/missing"].types == {"is_3D": True}
-    assert out["/z/missing"].hidden is True
-    # The input-type-excluded 2D image is untouched (no persisted hide).
+    assert out["/z/missing"].active is False
+    # The input-type-excluded 2D image is untouched (no persisted deactivation).
     assert out["/z/2a"].types == {"is_3D": False}
-    assert out["/z/2a"].hidden is False
+    assert out["/z/2a"].active is True
 
 
 def test_workflow_no_update_assigns_output_in_place(monkeypatch, tmp_path):
@@ -177,7 +177,7 @@ def test_workflow_no_update_assigns_output_in_place(monkeypatch, tmp_path):
     )
     out = _by_url(Workflow(task_list=[task]).run(ds))
     assert out["/z/a"].types == {"is_3D": False}
-    assert out["/z/a"].hidden is False
+    assert out["/z/a"].active is True
 
 
 def test_workflow_new_output_key(monkeypatch, tmp_path):
@@ -201,11 +201,11 @@ def test_workflow_new_output_key(monkeypatch, tmp_path):
         tmp_path,
     )
     out = _by_url(Workflow(task_list=[task]).run(ds))
-    # Brand-new key: produced gets True/visible, the input gets False/hidden.
+    # Brand-new key: produced gets True/active, the input gets False/deactivated.
     assert out["/z/a/o"].types == {"registered": True}
-    assert out["/z/a/o"].hidden is False
+    assert out["/z/a/o"].active is True
     assert out["/z/a"].types == {"registered": False}
-    assert out["/z/a"].hidden is True
+    assert out["/z/a"].active is False
 
 
 def test_workflow_converter_leaves_existing_images_untouched(monkeypatch, tmp_path):
@@ -226,12 +226,12 @@ def test_workflow_converter_leaves_existing_images_untouched(monkeypatch, tmp_pa
         tmp_path,
     )
     out = _by_url(Workflow(task_list=[task]).run(ds))
-    # Converter consumes zarr_dir, so pre-existing images are not flipped/hidden.
+    # Converter consumes zarr_dir, so pre-existing images are not flipped/deactivated.
     assert out["/z/old"].types == {"is_3D": False}
-    assert out["/z/old"].hidden is False
+    assert out["/z/old"].active is True
     # The produced image carries the output type.
     assert out["/z/new"].types == {"is_3D": True}
-    assert out["/z/new"].hidden is False
+    assert out["/z/new"].active is True
 
 
 # --- isolation == workflow -------------------------------------------------
@@ -267,9 +267,9 @@ def test_task_run_in_isolation_matches_single_step_workflow(monkeypatch, tmp_pat
     assert isolated.model_dump() == workflow.model_dump()
     # And it actually did the type enforcement (not a trivial no-op match).
     out = _by_url(isolated)
-    assert out["/z/3a"].hidden is True
+    assert out["/z/3a"].active is False
     assert out["/z/3a/proj"].types == {"is_3D": False}
-    assert out["/z/2a"].hidden is False
+    assert out["/z/2a"].active is True
 
 
 # --- serialization ---------------------------------------------------------

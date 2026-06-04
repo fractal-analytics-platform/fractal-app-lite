@@ -10,7 +10,7 @@ Two halves:
 * **Execution** (:func:`run_workflow`). Unlike ``run_service.run_task`` — which runs one
   task in isolation and folds only *new* images back into a deep copy — a workflow
   threads the shared dataset through every step in order, so ``Task.run`` applies input-
-  /output-types and ``hidden`` flags cumulatively. The shared ``state.dataset`` is
+  /output-types and ``active`` flags cumulatively. The shared ``state.dataset`` is
   therefore *replaced* with the threaded result. Supports running a sub-range
   ``[start, end)`` so a later step can be re-run without redoing the converters.
 """
@@ -198,7 +198,7 @@ def run_workflow(
     total = time.perf_counter() - t0
     state.dataset = dataset
     n_after = len(dataset.zarr_urls)
-    n_visible = len([zu for zu in dataset.zarr_urls if not zu.hidden])
+    n_visible = len([zu for zu in dataset.zarr_urls if zu.active])
     summary = (
         f"{len(steps)} step(s): {n_before} → {n_after} images ({n_visible} visible)"
     )

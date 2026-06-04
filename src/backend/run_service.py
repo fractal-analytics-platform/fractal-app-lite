@@ -3,7 +3,7 @@
 This preserves the original run model exactly (the brief's locked-in decision): apply
 transient filters to a deep copy of the shared dataset, run one task, fold only the
 task's *new* output images back into the shared dataset, and record the run in history.
-The shared dataset's own ``hidden`` flags are never touched here.
+The shared dataset's own ``active`` flags are never touched here.
 
 The function is synchronous and accepts an ``on_output`` callback and a
 ``Cancellation`` token — the same seams the core ``task.run`` already uses — so a later

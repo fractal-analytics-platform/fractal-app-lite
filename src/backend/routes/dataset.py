@@ -122,7 +122,7 @@ def preview(
     for key, val in req.type_filters:
         if key:
             working = TypeFilter(key=key, value=val).run(working)
-    visible = [zu.url for zu in working.zarr_urls if not zu.hidden]
+    visible = [zu.url for zu in working.zarr_urls if zu.active]
     return PreviewResponse(
         zarr_dir=state.dataset.zarr_dir,
         visible_urls=visible,
