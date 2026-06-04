@@ -4,8 +4,8 @@
 > This project is just a POC and not intended for production use.
 
 This project contains two main components:
-- A minimalistic implementation of fractal core concepts (datasets, collection, tasks, workflows) without need of a database.
-- A desktop app built with pywebview that serves a Svelte SPA frontend and provides native file dialogs via a Python bridge.
+- fractal-lite: A minimalistic implementation of fractal core concepts (datasets, collection, tasks, workflows, projects, history) without need of a database.
+- A desktop app built with pywebview that serves a Svelte frontend and provides native file dialogs via a Python bridge.
 
 ## Requirements
 
