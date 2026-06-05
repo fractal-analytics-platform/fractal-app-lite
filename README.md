@@ -43,10 +43,10 @@ Or run the API server only (serves the built frontend at <http://127.0.0.1:8765>
 pixi run serve
 ```
 
-To resume a previous session:
+To open a previously saved project:
 
 ```bash
-pixi run app --resume state.json
+pixi run app --open demo.flp
 ```
 
 ## Development
