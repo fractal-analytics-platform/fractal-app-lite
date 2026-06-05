@@ -368,11 +368,13 @@
 	}
 
 	// Pull whatever the backend already holds (e.g. restored from a session).
+	// Tracking store.project ensures this re-runs when a project is opened/changed.
 	$effect(() => {
+		store.project;
 		(async () => {
 			try {
 				const payload = await getWorkflow();
-				if (payload?.steps?.length) await applyPayload(payload);
+				if (payload) await applyPayload(payload);
 			} catch {
 				// non-fatal
 			}
