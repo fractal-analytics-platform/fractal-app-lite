@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.schemas import (
@@ -12,7 +12,8 @@ from backend.schemas import (
     TaskSchemaResponse,
     TaskSummary,
 )
-from fractal_lite import tasks_registry
+from backend.state import get_project, require_project
+from fractal_lite import Project
 from fractal_lite._package_index import load_package_index
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -20,6 +21,20 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 class RegistryPathRequest(BaseModel):
     path: str
+
+
+def _get_task_or_404(name: str):
+    """Look up a task in the open project's registry, 404-ing when absent.
+
+    With no project open the registry is empty, so the task reads as not-found.
+    """
+    project = get_project()
+    if project is not None:
+        try:
+            return project.registry.get_task(name)
+        except KeyError:
+            pass
+    raise HTTPException(status_code=404, detail=f"Task {name!r} not found.")
 
 
 def _summary(task) -> TaskSummary:
@@ -40,8 +55,14 @@ def _summary(task) -> TaskSummary:
 
 @router.get("", response_model=list[TaskSummary])
 def list_tasks() -> list[TaskSummary]:
-    """List every registered task with the phases it exposes a schema for."""
-    return [_summary(t) for t in tasks_registry.tasks]
+    """List every registered task with the phases it exposes a schema for.
+
+    Returns an empty list when no project is open (the registry is per-project).
+    """
+    project = get_project()
+    if project is None:
+        return []
+    return [_summary(t) for t in project.registry.tasks]
 
 
 @router.get("/package-index", response_model=list[PackageIndexEntry])
@@ -65,12 +86,10 @@ def task_schema(
 ) -> TaskSchemaResponse:
     """Return the raw Pydantic-v2 JSON Schema for a task's arguments.
 
-    This dict feeds the frontend ``JSchema`` component directly.
+    This dict feeds the frontend ``JSchema`` component directly. With no project
+    open the registry is empty, so any task reads as not-found (404).
     """
-    try:
-        task = tasks_registry.get_task(name)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from None
+    task = _get_task_or_404(name)
     attr = f"args_schema_{phase}"
     json_schema = getattr(task.task, attr, None)
     if json_schema is None:
@@ -84,10 +103,7 @@ def task_schema(
 @router.get("/{name}/details", response_model=TaskDetails)
 def task_details(name: str) -> TaskDetails:
     """Return a task's docs + both raw argument schemas for the details panel."""
-    try:
-        task = tasks_registry.get_task(name)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from None
+    task = _get_task_or_404(name)
     inner = task.task
     return TaskDetails(
         name=inner.name,
@@ -105,8 +121,13 @@ def task_details(name: str) -> TaskDetails:
 
 
 @router.post("/collect", response_model=list[TaskSummary])
-def collect(req: CollectRequest) -> list[TaskSummary]:
-    """Register a task package from a local tarball/directory or a GitHub release."""
+def collect(
+    req: CollectRequest, project: Project = Depends(require_project)
+) -> list[TaskSummary]:
+    """Register a task package from a local tarball/directory or a GitHub release.
+
+    Collected into the open project's registry and persisted to its directory.
+    """
     if req.kind == "gitrelease":
         if not req.repo_url:
             raise HTTPException(
@@ -122,36 +143,46 @@ def collect(req: CollectRequest) -> list[TaskSummary]:
             raise HTTPException(status_code=400, detail=f"Path not found: {path}")
     try:
         if req.kind == "gitrelease":
-            tasks_registry.collect_from_gitrelease(
+            project.registry.collect_from_gitrelease(
                 req.repo_url, req.tag or None, overwrite=req.overwrite
             )
         elif req.kind == "targz":
-            tasks_registry.collect_from_targz(path, overwrite=req.overwrite)
+            project.registry.collect_from_targz(path, overwrite=req.overwrite)
         else:
-            tasks_registry.collect_from_directory(path, overwrite=req.overwrite)
+            project.registry.collect_from_directory(path, overwrite=req.overwrite)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [_summary(t) for t in tasks_registry.tasks]
+    project.save_registry()
+    return [_summary(t) for t in project.registry.tasks]
 
 
 @router.post("/registry/save")
-def save_registry(req: RegistryPathRequest) -> dict:
-    """Dump the whole task registry to a JSON file on disk."""
+def save_registry(
+    req: RegistryPathRequest, project: Project = Depends(require_project)
+) -> dict:
+    """Dump the open project's task registry to a JSON file on disk."""
     try:
-        tasks_registry.dump_to_json(req.path)
+        project.registry.dump_to_json(req.path)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"path": req.path}
 
 
 @router.post("/registry/load", response_model=list[TaskSummary])
-def load_registry(req: RegistryPathRequest) -> list[TaskSummary]:
-    """Load a registry from JSON, rebuilding its tasks from the stored sources."""
+def load_registry(
+    req: RegistryPathRequest, project: Project = Depends(require_project)
+) -> list[TaskSummary]:
+    """Load a registry from JSON into the open project, rebuilding its tasks.
+
+    Tasks are rebuilt from the stored sources and the project's own
+    ``registry.json`` is updated to match.
+    """
     if not Path(req.path).is_file():
         raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
     try:
         # load_from_json re-collects from the sources itself.
-        tasks_registry.load_from_json(req.path)
+        project.registry.load_from_json(req.path)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [_summary(t) for t in tasks_registry.tasks]
+    project.save_registry()
+    return [_summary(t) for t in project.registry.tasks]

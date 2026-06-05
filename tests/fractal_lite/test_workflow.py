@@ -337,11 +337,13 @@ def test_to_fractal_dict_shape_and_drops_filters(tmp_path):
     assert entry["alias"] is None
 
 
-def test_from_fractal_dict_resolves_and_attaches_kwargs(monkeypatch, tmp_path):
+def test_from_fractal_dict_resolves_and_attaches_kwargs(
+    monkeypatch, tmp_path, registry
+):
     resolved = _export_task(tmp_path)
     calls = []
 
-    def fake_resolve(pkg_name, version, name):
+    def fake_resolve(pkg_name, version, name, reg):
         calls.append((pkg_name, version, name))
         return resolved
 
@@ -362,7 +364,7 @@ def test_from_fractal_dict_resolves_and_attaches_kwargs(monkeypatch, tmp_path):
             }
         ],
     }
-    wf = Workflow.from_fractal_dict(data)
+    wf = Workflow.from_fractal_dict(data, registry)
 
     assert calls == [("fractal-tasks-core", "2.0.0", "My Task")]
     assert len(wf.task_list) == 1
@@ -374,7 +376,7 @@ def test_from_fractal_dict_resolves_and_attaches_kwargs(monkeypatch, tmp_path):
     assert step.name == "My Task"
 
 
-def test_from_fractal_json_matches_from_fractal_dict(monkeypatch, tmp_path):
+def test_from_fractal_json_matches_from_fractal_dict(monkeypatch, tmp_path, registry):
     monkeypatch.setattr(
         workflow_mod, "_resolve_task", lambda *a: _export_task(tmp_path)
     )
@@ -395,5 +397,5 @@ def test_from_fractal_json_matches_from_fractal_dict(monkeypatch, tmp_path):
     }
     import json
 
-    wf = Workflow.from_fractal_json(json.dumps(data))
+    wf = Workflow.from_fractal_json(json.dumps(data), registry)
     assert wf.task_list[0].kwargs_parallel == {"b": 2}

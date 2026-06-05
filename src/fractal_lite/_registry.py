@@ -21,13 +21,8 @@ class TasksRegistryModel(BaseModel):
 
 
 class TasksRegistry:
-    _instance = None
-    _registry: TasksRegistryModel = TasksRegistryModel()
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def __init__(self, registry: TasksRegistryModel | None = None) -> None:
+        self._registry = registry if registry is not None else TasksRegistryModel()
 
     @property
     def tasks(self) -> list[Task]:
@@ -165,6 +160,3 @@ class TasksRegistry:
             s.model_copy(update={"version": version_for(s)})
             for s in self._registry.sources
         }
-
-
-tasks_registry = TasksRegistry()

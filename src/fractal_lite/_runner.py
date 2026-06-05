@@ -34,7 +34,6 @@ from fractal_lite._execution import (
 from fractal_lite._filters import AttributeFilter, TypeFilter
 from fractal_lite._history import SandboxRunRecord, WorkflowRunRecord
 from fractal_lite._project import Project
-from fractal_lite._registry import tasks_registry
 from fractal_lite._tasks import Task
 
 
@@ -91,7 +90,7 @@ def run_task(
         working = TypeFilter(key=key, value=val).run(working)
     n_before = len(working.zarr_urls)
 
-    task = tasks_registry.get_task(task_name).model_copy(
+    task = project.registry.get_task(task_name).model_copy(
         update={
             "kwargs_non_parallel": kwargs_non_parallel or None,
             "kwargs_parallel": kwargs_parallel or None,
