@@ -24,7 +24,7 @@ def _open_project(tmp_path):
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(registry, tmp_path):
     # Each test starts from a fresh project with an empty workflow.
     _open_project(tmp_path)
     with TestClient(app) as c:
@@ -33,7 +33,7 @@ def client(tmp_path):
 
 
 @pytest.fixture
-def seeded_client(converters_targz, tmp_path):
+def seeded_client(registry, converters_targz, tmp_path):
     """A client whose registry has one collected package and an open project."""
     tasks_registry.collect_from_targz(converters_targz, overwrite=True)
     _open_project(tmp_path)

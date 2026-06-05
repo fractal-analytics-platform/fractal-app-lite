@@ -19,7 +19,7 @@ from fractal_lite import Project, RunResult, tasks_registry
 
 
 @pytest.fixture
-def client():
+def client(registry):
     state.set_project(None)
     with TestClient(app) as c:
         yield c
@@ -27,7 +27,7 @@ def client():
 
 
 @pytest.fixture
-def seeded_client(converters_targz):
+def seeded_client(registry, converters_targz):
     """A client whose registry has one collected package (startup no longer seeds)."""
     tasks_registry.collect_from_targz(converters_targz, overwrite=True)
     state.set_project(None)
