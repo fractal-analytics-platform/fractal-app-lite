@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.state import get_project, require_project
-from fractal_lite import Dataset, Project, tasks_registry
+from fractal_lite import Dataset, Project
 from fractal_lite._filters import AttributeFilter, TypeFilter
 
 router = APIRouter(prefix="/api/dataset", tags=["dataset"])
@@ -93,7 +93,7 @@ def preview(
     # Converter tasks ignore the existing image list — they run on zarr_dir.
     if req.task_name:
         try:
-            inner = tasks_registry.get_task(req.task_name).task
+            inner = project.registry.get_task(req.task_name).task
             if inner.type.startswith("converter"):
                 return PreviewResponse(
                     is_converter=True, zarr_dir=project.dataset.zarr_dir

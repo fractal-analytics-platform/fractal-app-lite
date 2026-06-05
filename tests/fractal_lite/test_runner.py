@@ -42,9 +42,11 @@ def _register_task(registry, tmp_path) -> Task:
     return registry.tasks[0]
 
 
-def _project(tmp_path, *, n_images: int = 1) -> Project:
+def _project(tmp_path, registry, *, n_images: int = 1) -> Project:
     zarr_dir = str(tmp_path / "zarr")
     project = Project.create(tmp_path / "proj", name="P", zarr_dir=zarr_dir)
+    # The runner reads tasks off ``project.registry``; use the test's registry.
+    project.registry = registry
     project.dataset = Dataset(
         name="P",
         zarr_dir=zarr_dir,
@@ -87,7 +89,7 @@ def _appending_run(n_new: int = 1):
 def test_run_task_folds_new_images(registry, tmp_path, monkeypatch):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run(n_new=2))
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
 
     result = run_task(project, task.unique_id, None, None, [], [])
 
@@ -109,7 +111,7 @@ def test_run_task_folds_new_images(registry, tmp_path, monkeypatch):
 def test_run_task_captures_filters_and_kwargs(registry, tmp_path, monkeypatch):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run())
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
 
     run_task(
         project,
@@ -133,7 +135,7 @@ def test_run_task_transient_filters_dont_touch_shared_dataset(
 ):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run())
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
 
     # A filter that matches nothing would deactivate the image on the working copy.
     run_task(project, task.unique_id, None, None, [("well", "Z9")], [])
@@ -145,7 +147,7 @@ def test_run_task_transient_filters_dont_touch_shared_dataset(
 def test_run_task_on_empty_dataset_is_allowed(registry, tmp_path, monkeypatch):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run())
-    project = _project(tmp_path, n_images=0)
+    project = _project(tmp_path, registry, n_images=0)
 
     result = run_task(project, task.unique_id, None, None, [], [])
 
@@ -160,7 +162,7 @@ def test_run_task_cancelled(registry, tmp_path, monkeypatch):
         raise RunCancelled
 
     monkeypatch.setattr(Task, "run", cancel)
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
 
     result = run_task(project, task.unique_id, None, None, [], [])
 
@@ -178,7 +180,7 @@ def test_run_task_failed_records_and_reraises(registry, tmp_path, monkeypatch):
         raise RuntimeError("kaboom")
 
     monkeypatch.setattr(Task, "run", boom)
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
 
     with pytest.raises(RuntimeError, match="kaboom"):
         run_task(project, task.unique_id, None, None, [], [])
@@ -194,7 +196,7 @@ def test_run_task_failed_records_and_reraises(registry, tmp_path, monkeypatch):
 def test_run_workflow_threads_and_replaces_dataset(registry, tmp_path, monkeypatch):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run())
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
     project.workflow.add_step(task)
     project.workflow.add_step(task.model_copy())
 
@@ -217,7 +219,7 @@ def test_run_workflow_threads_and_replaces_dataset(registry, tmp_path, monkeypat
 def test_run_workflow_runs_filter_steps(registry, tmp_path, monkeypatch):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run())
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
     # A filter that matches the image keeps it active; the task then appends one.
     project.workflow.add_step(AttributeFilter(attribute="well", value="A1"))
     project.workflow.add_step(task)
@@ -232,7 +234,7 @@ def test_run_workflow_runs_filter_steps(registry, tmp_path, monkeypatch):
 def test_run_workflow_snapshot_is_deep_copied(registry, tmp_path, monkeypatch):
     task = _register_task(registry, tmp_path)
     monkeypatch.setattr(Task, "run", _appending_run())
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
     project.workflow.add_step(task)
 
     run_workflow(project)
@@ -254,7 +256,7 @@ def test_run_workflow_sub_range(registry, tmp_path, monkeypatch):
         return dataset.model_copy(update={"zarr_urls": [*dataset.zarr_urls, new]})
 
     monkeypatch.setattr(Task, "run", counting_run)
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
     for _ in range(3):
         project.workflow.add_step(task.model_copy())
 
@@ -269,7 +271,7 @@ def test_run_workflow_sub_range(registry, tmp_path, monkeypatch):
 
 
 def test_run_workflow_empty_steps_raises(registry, tmp_path):
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
     with pytest.raises(ValueError, match="No workflow steps to run"):
         run_workflow(project)
 
@@ -281,7 +283,7 @@ def test_run_workflow_cancelled(registry, tmp_path, monkeypatch):
         raise RunCancelled
 
     monkeypatch.setattr(Task, "run", cancel)
-    project = _project(tmp_path, n_images=1)
+    project = _project(tmp_path, registry, n_images=1)
     project.workflow.add_step(task)
 
     result = run_workflow(project)

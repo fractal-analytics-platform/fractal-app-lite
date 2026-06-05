@@ -12,13 +12,12 @@ from fractal_lite._history import (
 )
 from fractal_lite._package_index import PackageIndexEntry
 from fractal_lite._project import Project, ProjectIndex
-from fractal_lite._registry import tasks_registry
+from fractal_lite._registry import TasksRegistry
 from fractal_lite._runner import RunResult, run_task, run_workflow
 from fractal_lite._tasks import ConverterCompoundTask, ParallelTask, Task
 from fractal_lite._workflow import Workflow
 
 __all__ = [
-    "__version__",
     "Cancellation",
     "ConverterCompoundTask",
     "Dataset",
@@ -33,11 +32,12 @@ __all__ = [
     "SandboxHistory",
     "SandboxRunRecord",
     "Task",
+    "TasksRegistry",
     "Workflow",
     "WorkflowHistory",
     "WorkflowRunRecord",
     "ZarrUrl",
+    "__version__",
     "run_task",
     "run_workflow",
-    "tasks_registry",
 ]

@@ -57,6 +57,8 @@ def test_project_round_trip(registry, tmp_path):
     project = Project.create(
         proj_dir, name="MyProject", zarr_dir=str(zarr_dir), max_workers=4
     )
+    # The project persists/reloads its own registry; use the one holding the task.
+    project.registry = registry
 
     project.dataset = _dataset(zarr_dir)
     project.workflow.add_step(task)

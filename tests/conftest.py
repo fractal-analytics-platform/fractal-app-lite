@@ -6,11 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from fractal_lite._registry import (
-    TasksRegistry,
-    TasksRegistryModel,
-    tasks_registry,
-)
+from fractal_lite._registry import TasksRegistry, TasksRegistryModel
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -46,22 +42,10 @@ def converters_targz() -> Path:
 
 
 @pytest.fixture
-def registry(tmp_path):
-    """Isolate the ``tasks_registry`` singleton, restoring it after the test.
+def registry(tmp_path) -> TasksRegistry:
+    """A fresh, isolated :class:`TasksRegistry` collecting into ``tmp_path``.
 
-    ``TasksRegistry`` stores its state in a class attribute, but methods like
-    ``load_from_dict`` and ``load_from_json`` set it as an *instance* attribute on the
-    singleton, which shadows the class attribute. We save and restore both levels so
-    test order does not matter.
+    Each test gets its own instance (the registry is no longer a global singleton),
+    so no save/restore is needed for isolation.
     """
-    singleton = tasks_registry
-    # Pop any instance-level _registry set by a previous test's load_from_dict call.
-    old_instance = singleton.__dict__.pop("_registry", None)
-    old_class = TasksRegistry._registry
-    TasksRegistry._registry = TasksRegistryModel(collection_dir=tmp_path / "collected")
-    yield tasks_registry
-    TasksRegistry._registry = old_class
-    # Remove any instance attribute the test may have set, then restore the old one.
-    singleton.__dict__.pop("_registry", None)
-    if old_instance is not None:
-        singleton._registry = old_instance
+    return TasksRegistry(TasksRegistryModel(collection_dir=tmp_path / "collected"))

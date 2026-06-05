@@ -3,17 +3,17 @@
 Execution now lives in :func:`fractal_lite.run_workflow` (operating on a
 :class:`~fractal_lite.Project`); this module keeps only the frontend↔canonical
 bridge, which has no equivalent in ``fractal_lite``. Task steps are resolved against
-the global ``tasks_registry`` by ``unique_id`` (the same lookup the runner uses);
-filter steps map to ``AttributeFilter``/``TypeFilter``.
+the project's ``registry`` by ``unique_id`` (the same lookup the runner uses); filter
+steps map to ``AttributeFilter``/``TypeFilter``.
 """
 
 from backend.schemas import WorkflowPayload
-from fractal_lite import Workflow, tasks_registry
+from fractal_lite import TasksRegistry, Workflow
 from fractal_lite._filters import AttributeFilter, Filter, TypeFilter
 from fractal_lite._tasks import Task
 
 
-def steps_to_workflow(payload: WorkflowPayload) -> Workflow:
+def steps_to_workflow(payload: WorkflowPayload, registry: TasksRegistry) -> Workflow:
     """Build a canonical :class:`Workflow` from the frontend's step list.
 
     Raises:
@@ -25,7 +25,7 @@ def steps_to_workflow(payload: WorkflowPayload) -> Workflow:
         if step.kind == "task":
             if not step.task_name:
                 raise ValueError(f"Step {i}: task step is missing 'task_name'.")
-            task = tasks_registry.get_task(step.task_name).model_copy(
+            task = registry.get_task(step.task_name).model_copy(
                 update={
                     "kwargs_non_parallel": step.kwargs_non_parallel or None,
                     "kwargs_parallel": step.kwargs_parallel or None,

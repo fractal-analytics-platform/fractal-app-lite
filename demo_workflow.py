@@ -19,7 +19,7 @@ re-run in place against the same ``zarr_dir``.
 
 from pathlib import Path
 
-from fractal_lite import Dataset, Workflow, tasks_registry
+from fractal_lite import Dataset, TasksRegistry, Workflow
 from fractal_lite._package_index import find_package
 
 # Raw Evident ScanR acquisition to convert (2 wells, 4 positions, 4 channels,
@@ -43,31 +43,32 @@ def show(title: str, ds: Dataset) -> None:
     print()
 
 
-def collect_from_index(pkg_name: str) -> None:
+def collect_from_index(registry: TasksRegistry, pkg_name: str) -> None:
     """Collect a package's GitHub release using the curated package index."""
     entry = find_package(pkg_name)
     if entry is None:
         raise ValueError(f"{pkg_name!r} is not in the package index.")
-    tasks_registry.collect_from_gitrelease(
+    registry.collect_from_gitrelease(
         entry.repo_url, tag=entry.tag or None, overwrite=True
     )
 
 
-def task_named(name: str):
+def task_named(registry: TasksRegistry, name: str):
     """Return the (first) collected task with the given manifest name."""
-    for task in tasks_registry.tasks:
+    for task in registry.tasks:
         if task.name == name:
             return task
     raise KeyError(
         f"Task {name!r} not collected. "
-        f"Available: {sorted(t.name for t in tasks_registry.tasks)}"
+        f"Available: {sorted(t.name for t in registry.tasks)}"
     )
 
 
 def main() -> None:
     # Collect fractal-uzh-converters and fractal-tasks-core from the package index.
-    collect_from_index("fractal-uzh-converters")
-    collect_from_index("fractal-tasks-core")
+    registry = TasksRegistry()
+    collect_from_index(registry, "fractal-uzh-converters")
+    collect_from_index(registry, "fractal-tasks-core")
 
     # The converter builds the dataset from the raw data, so we start empty --
     # only the (existing) zarr_dir into which the OME-Zarr plate is written.
@@ -77,7 +78,7 @@ def main() -> None:
 
     # Build the three workflow steps, all set to overwrite so the workflow can
     # be re-run in place on the same zarr_dir.
-    converter = task_named(CONVERTER_TASK).model_copy(
+    converter = task_named(registry, CONVERTER_TASK).model_copy(
         update={
             "kwargs_non_parallel": {
                 "acquisitions": [{"path": RAW_ACQUISITION}],
@@ -85,10 +86,10 @@ def main() -> None:
             }
         }
     )
-    projection = task_named(PROJECTION_TASK).model_copy(
+    projection = task_named(registry, PROJECTION_TASK).model_copy(
         update={"kwargs_non_parallel": {"overwrite": True}}
     )
-    threshold = task_named(THRESHOLD_TASK).model_copy(
+    threshold = task_named(registry, THRESHOLD_TASK).model_copy(
         update={
             "kwargs_parallel": {
                 # Segment on the first channel; overwrite an existing label.

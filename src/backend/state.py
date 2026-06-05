@@ -2,9 +2,9 @@
 
 This is a single-user local desktop app, so a module-level singleton holding the
 currently open :class:`~fractal_lite.Project` is sufficient. A ``Project`` owns the
-dataset, the workflow, both run-histories and the project settings, and persists
-itself to a project directory (one file per concern). The task registry remains a
-global singleton (``fractal_lite.tasks_registry``) and is used directly.
+dataset, the workflow, both run-histories, the project settings, and its own task
+registry (``project.registry``), and persists itself to a project directory (one
+file per concern). The registry is therefore per-project, not a global singleton.
 
 The project is injected into FastAPI handlers via the ``require_project`` dependency
 so handlers stay testable. There is no project until the user creates one
