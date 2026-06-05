@@ -1,13 +1,21 @@
+# Python bytecode and cache files
 __pycache__/
 *.pyc
+
+# Pixi stuff
 .pixi/
-collected/
 # Vendored fractal-web clone (regenerated via the `clone-fractal-web` pixi task).
 fractal-web-clone/
 src/frontend/node_modules/
 src/frontend/build/
 src/frontend/.svelte-kit/
+
+# Generated files
 state.json
 *.zarr
 .cache/
+
+# Frctal Lite project files
 *.flp
+# MacOS metadata files
+.DS_Store
