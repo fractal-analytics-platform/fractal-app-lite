@@ -36,7 +36,9 @@ def set_workflow(
 ) -> dict:
     """Replace the current workflow with the frontend's step list."""
     try:
-        project.workflow = workflow_service.steps_to_workflow(payload)
+        project.workflow = workflow_service.steps_to_workflow(
+            payload, project.registry
+        )
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     project.save_workflow()
@@ -158,7 +160,9 @@ def import_workflow_fractal(
     if not path or not Path(path).is_file():
         raise HTTPException(status_code=400, detail=f"File not found: {path}")
     try:
-        project.workflow = Workflow.from_fractal_json(Path(path).read_text())
+        project.workflow = Workflow.from_fractal_json(
+            Path(path).read_text(), project.registry
+        )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     project.save_workflow()

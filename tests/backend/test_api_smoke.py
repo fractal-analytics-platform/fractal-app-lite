@@ -1,11 +1,12 @@
 """Smoke tests for the backend REST API.
 
 Run with the project's pixi dev env: ``pixi run -e dev test``. These exercise the API
-surface end-to-end against the in-process app. The registry starts empty (packages are
-collected on demand), so tests that need registered tasks use the ``seeded_client``
-fixture, which collects one package first. State lives on a ``Project`` singleton; the
-``client`` fixtures reset it, and ``proj_client`` opens a fresh project so dataset/run
-endpoints have somewhere to operate.
+surface end-to-end against the in-process app. The registry is owned per-project, so
+tests that need registered tasks use ``seeded_client``, which opens a project and
+collects one package into its registry. State lives on a ``Project`` singleton; the
+``client`` fixture resets it, ``proj_client`` opens a fresh project so dataset/run
+endpoints have somewhere to operate, and ``seeded_client`` additionally seeds that
+project's registry.
 """
 
 from urllib.parse import quote
@@ -15,47 +16,42 @@ from fastapi.testclient import TestClient
 
 from backend import state
 from backend.main import app
-from fractal_lite import Project, RunResult, tasks_registry
+from fractal_lite import Project, RunResult
 
 
 @pytest.fixture
-def client(registry):
+def client():
     state.set_project(None)
     with TestClient(app) as c:
         yield c
     state.set_project(None)
 
 
-@pytest.fixture
-def seeded_client(registry, converters_targz):
-    """A client whose registry has one collected package (startup no longer seeds)."""
-    tasks_registry.collect_from_targz(converters_targz, overwrite=True)
-    state.set_project(None)
-    with TestClient(app) as c:
-        yield c
-    state.set_project(None)
+def _open_project(tmp_path, registry, name="demo", zarr_dir=None):
+    """Create + register a fresh project on the singleton, returning it.
 
-
-def _open_project(tmp_path, name="demo", zarr_dir=None):
-    """Create + register a fresh project on the singleton, returning it."""
+    The project adopts the test's ``registry`` (whose ``collection_dir`` is a tmp
+    path) so any collection writes to tmp rather than the real user cache.
+    """
     zarr_dir = zarr_dir if zarr_dir is not None else str(tmp_path / "z")
     project = Project.create(tmp_path / "proj", name=name, zarr_dir=zarr_dir)
+    project.registry = registry
     state.set_project(project)
     return project
 
 
 @pytest.fixture
-def proj_client(client, tmp_path):
-    """A client with an open project (empty dataset)."""
-    _open_project(tmp_path)
+def proj_client(client, registry, tmp_path):
+    """A client with an open project (empty dataset and registry)."""
+    _open_project(tmp_path, registry)
     return client
 
 
 @pytest.fixture
-def seeded_proj_client(seeded_client, tmp_path):
-    """A client with both a collected package and an open project."""
-    _open_project(tmp_path)
-    return seeded_client
+def seeded_client(proj_client, registry, converters_targz):
+    """A client with an open project whose registry has one collected package."""
+    registry.collect_from_targz(converters_targz, overwrite=True)
+    return proj_client
 
 
 def test_health(client):
@@ -89,11 +85,14 @@ def test_unknown_task_schema_404(client):
     assert client.get("/api/tasks/Nope/schema").status_code == 404
 
 
-def test_run_without_project_is_400(seeded_client):
-    uid = seeded_client.get("/api/tasks").json()[0]["unique_id"]
-    res = seeded_client.post("/api/run", json={"task_name": uid})
+def test_run_without_project_is_400(client):
+    res = client.post("/api/run", json={"task_name": "anything"})
     assert res.status_code == 400
     assert "No project open" in res.json()["detail"]
+
+
+def test_no_project_returns_empty_tasks(client):
+    assert client.get("/api/tasks").json() == []
 
 
 def test_no_project_returns_null_dataset(client):
@@ -208,13 +207,19 @@ def test_package_index_lists_curated_packages(client):
     assert {"name", "repo_url"} <= set(entries[0])
 
 
-def test_collect_gitrelease_requires_repo_url(client):
-    res = client.post("/api/tasks/collect", json={"kind": "gitrelease"})
+def test_collect_gitrelease_requires_repo_url(proj_client):
+    res = proj_client.post("/api/tasks/collect", json={"kind": "gitrelease"})
     assert res.status_code == 400
     assert "repo_url" in res.json()["detail"]
 
 
-def test_collect_gitrelease_registers_tasks(client, converters_targz, monkeypatch):
+def test_collect_requires_project(client):
+    res = client.post("/api/tasks/collect", json={"kind": "gitrelease"})
+    assert res.status_code == 400
+    assert "No project open" in res.json()["detail"]
+
+
+def test_collect_gitrelease_registers_tasks(proj_client, converters_targz, monkeypatch):
     """POST kind=gitrelease registers tasks; the asset resolver is stubbed to the
     local converters tarball so no network call is made."""
     from fractal_lite import _collect
@@ -228,7 +233,7 @@ def test_collect_gitrelease_registers_tasks(client, converters_targz, monkeypatc
             "v0.5.2",
         ),
     )
-    res = client.post(
+    res = proj_client.post(
         "/api/tasks/collect",
         json={
             "kind": "gitrelease",
@@ -388,7 +393,7 @@ def test_cancel_unknown_job_404(client):
     assert client.post("/api/run/nope/cancel").status_code == 404
 
 
-def test_run_streams_over_websocket(seeded_proj_client, monkeypatch):
+def test_run_streams_over_websocket(seeded_client, monkeypatch):
     from backend.routes import run as run_route
 
     def fake_run_task(project, task_name, knp, kp, filters, type_filters, **kw):
@@ -405,12 +410,10 @@ def test_run_streams_over_websocket(seeded_proj_client, monkeypatch):
 
     monkeypatch.setattr(run_route, "run_task", fake_run_task)
 
-    uid = seeded_proj_client.get("/api/tasks").json()[0]["unique_id"]
-    job_id = seeded_proj_client.post("/api/run", json={"task_name": uid}).json()[
-        "job_id"
-    ]
+    uid = seeded_client.get("/api/tasks").json()[0]["unique_id"]
+    job_id = seeded_client.post("/api/run", json={"task_name": uid}).json()["job_id"]
     messages = []
-    with seeded_proj_client.websocket_connect(f"/api/run/{job_id}/ws") as ws:
+    with seeded_client.websocket_connect(f"/api/run/{job_id}/ws") as ws:
         while True:
             msg = ws.receive_json()
             messages.append(msg)
@@ -422,7 +425,7 @@ def test_run_streams_over_websocket(seeded_proj_client, monkeypatch):
     assert messages[-1]["status"] == "completed"
     assert messages[-1]["mean_item_seconds"] == 0.5
     # The history endpoint always returns a list (the fake run does not record).
-    assert isinstance(seeded_proj_client.get("/api/run/history").json(), list)
+    assert isinstance(seeded_client.get("/api/run/history").json(), list)
 
 
 def test_dataset_and_project_roundtrip(proj_client, tmp_path):

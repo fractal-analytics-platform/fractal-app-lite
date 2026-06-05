@@ -12,8 +12,9 @@ A project directory holds one file per concern rather than a single bundle::
 
 :class:`Project` is the in-process state object (the replacement for the backend's
 ``AppState``): mutate ``project.dataset`` / ``.workflow`` / ``.sandbox_history`` /
-``.workflow_history`` in place, then :meth:`save` (whole project) or one of the
-``save_*`` methods (a single artifact).
+``.workflow_history`` / ``.registry`` in place, then :meth:`save` (whole project) or one
+of the ``save_*`` methods (a single artifact). The task registry is owned per-project
+(``project.registry``), not a global singleton.
 
 Filenames in :class:`ProjectIndex` are relative to the project directory, so the
 directory can be moved freely and still load. Large, regenerable task ``args_schema_*``
@@ -29,7 +30,7 @@ from pydantic import BaseModel
 from fractal_lite.__version__ import __version__ as _APP_VERSION
 from fractal_lite._dataset import Dataset
 from fractal_lite._history import SandboxHistory, WorkflowHistory
-from fractal_lite._registry import tasks_registry
+from fractal_lite._registry import TasksRegistry
 from fractal_lite._workflow import Workflow, strip_task_schemas
 
 # Name of the index file at the root of every project directory.
@@ -66,6 +67,7 @@ class Project:
         workflow: Workflow,
         sandbox_history: SandboxHistory,
         workflow_history: WorkflowHistory,
+        registry: TasksRegistry,
     ) -> None:
         self.project_dir = Path(project_dir)
         self.index = index
@@ -73,6 +75,7 @@ class Project:
         self.workflow = workflow
         self.sandbox_history = sandbox_history
         self.workflow_history = workflow_history
+        self.registry = registry
 
     # --- Convenience read/write-through accessors onto the index -----------
 
@@ -120,7 +123,8 @@ class Project:
         """Create the project directory and an empty project, then persist it.
 
         The dataset and workflow are named after the project; the histories start
-        empty. The current global :data:`tasks_registry` sources are written too.
+        empty. The project gets a fresh, empty task registry, whose (empty) sources
+        are written too.
         """
         project_dir = Path(project_dir)
         project_dir.mkdir(parents=True, exist_ok=exist_ok)
@@ -137,6 +141,7 @@ class Project:
             workflow=Workflow(name=name),
             sandbox_history=SandboxHistory(),
             workflow_history=WorkflowHistory(),
+            registry=TasksRegistry(),
         )
         project.save()
         return project
@@ -156,16 +161,19 @@ class Project:
         # Registry first: re-collecting it populates the schemas the workflow and
         # history snapshots reference. Best-effort — a moved/unavailable source must
         # not block restoring the rest of the project.
+        registry = TasksRegistry()
         registry_path = project_dir / index.registry_file
         if registry_path.exists():
             with contextlib.suppress(Exception):
-                tasks_registry.load_from_json(registry_path)
+                registry.load_from_json(registry_path)
 
         dataset = cls._load_dataset(project_dir, index)
 
         workflow_path = project_dir / index.workflow_file
         if workflow_path.exists():
-            workflow = Workflow.from_json(workflow_path.read_text()).resolve_schemas()
+            workflow = Workflow.from_json(
+                workflow_path.read_text()
+            ).resolve_schemas(registry)
         else:
             workflow = Workflow(name=index.name)
 
@@ -176,7 +184,7 @@ class Project:
             else SandboxHistory()
         )
 
-        workflow_history = cls._load_workflow_history(project_dir, index)
+        workflow_history = cls._load_workflow_history(project_dir, index, registry)
 
         return cls(
             project_dir=project_dir,
@@ -185,6 +193,7 @@ class Project:
             workflow=workflow,
             sandbox_history=sandbox_history,
             workflow_history=workflow_history,
+            registry=registry,
         )
 
     @staticmethod
@@ -208,7 +217,7 @@ class Project:
 
     @staticmethod
     def _load_workflow_history(
-        project_dir: Path, index: ProjectIndex
+        project_dir: Path, index: ProjectIndex, registry: TasksRegistry
     ) -> WorkflowHistory:
         path = project_dir / index.workflow_history_file
         if not path.exists():
@@ -216,7 +225,7 @@ class Project:
         history = WorkflowHistory.from_json(path.read_text())
         for record in history.records:
             if record.workflow is not None:
-                record.workflow = record.workflow.resolve_schemas()
+                record.workflow = record.workflow.resolve_schemas(registry)
         return history
 
     # --- Persistence -------------------------------------------------------
@@ -272,4 +281,4 @@ class Project:
         )
 
     def save_registry(self) -> None:
-        tasks_registry.dump_to_json(self.project_dir / self.index.registry_file)
+        self.registry.dump_to_json(self.project_dir / self.index.registry_file)

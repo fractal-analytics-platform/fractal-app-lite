@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from backend.jobs import Job, job_manager
 from backend.schemas import RunRequest
 from backend.state import require_project
-from fractal_lite import Project, run_task, tasks_registry
+from fractal_lite import Project, run_task
 
 router = APIRouter(prefix="/api", tags=["run"])
 
@@ -60,7 +60,7 @@ async def start_run(
 ) -> dict:
     """Validate, then launch a run on a worker thread; returns its ``job_id``."""
     try:
-        tasks_registry.get_task(req.task_name)
+        project.registry.get_task(req.task_name)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 

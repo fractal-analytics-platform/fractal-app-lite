@@ -1,8 +1,9 @@
 """Tests for the workflow endpoints and the step-list <-> Workflow conversion.
 
 Run with: ``pixi run -e dev test``. Uses the ``seeded_client`` fixture (one collected
-package) so task steps resolve against the registry. State lives on a ``Project``
-singleton; the fixtures open a fresh project (with an empty workflow) per test.
+package) so task steps resolve against the project's registry. State lives on a
+``Project`` singleton; the fixtures open a fresh project (with an empty workflow) per
+test, each owning the test's tmp-backed registry.
 """
 
 import pytest
@@ -12,21 +13,21 @@ from backend import state
 from backend.main import app
 from backend.schemas import WorkflowPayload, WorkflowStep
 from backend.workflow_service import steps_to_workflow, workflow_to_payload
-from fractal_lite import Project, tasks_registry
+from fractal_lite import Project
 from fractal_lite._filters import AttributeFilter, TypeFilter
 from fractal_lite._tasks import Task
 
 
-def _open_project(tmp_path):
-    state.set_project(
-        Project.create(tmp_path / "proj", name="WF", zarr_dir=str(tmp_path / "z"))
-    )
+def _open_project(tmp_path, registry):
+    project = Project.create(tmp_path / "proj", name="WF", zarr_dir=str(tmp_path / "z"))
+    project.registry = registry
+    state.set_project(project)
 
 
 @pytest.fixture
 def client(registry, tmp_path):
     # Each test starts from a fresh project with an empty workflow.
-    _open_project(tmp_path)
+    _open_project(tmp_path, registry)
     with TestClient(app) as c:
         yield c
     state.set_project(None)
@@ -34,9 +35,9 @@ def client(registry, tmp_path):
 
 @pytest.fixture
 def seeded_client(registry, converters_targz, tmp_path):
-    """A client whose registry has one collected package and an open project."""
-    tasks_registry.collect_from_targz(converters_targz, overwrite=True)
-    _open_project(tmp_path)
+    """A client whose project registry has one collected package."""
+    registry.collect_from_targz(converters_targz, overwrite=True)
+    _open_project(tmp_path, registry)
     with TestClient(app) as c:
         yield c
     state.set_project(None)
@@ -102,7 +103,7 @@ def test_run_without_project_is_400(tmp_path):
         assert c.post("/api/workflow/run", json={}).status_code == 400
 
 
-def test_steps_to_workflow_builds_tasks_and_filters(seeded_client):
+def test_steps_to_workflow_builds_tasks_and_filters(seeded_client, registry):
     uid = seeded_client.get("/api/tasks").json()[0]["unique_id"]
     payload = WorkflowPayload(
         name="wf",
@@ -114,7 +115,7 @@ def test_steps_to_workflow_builds_tasks_and_filters(seeded_client):
             WorkflowStep(kind="filter", filter_type="type", key="is_3D", value=False),
         ],
     )
-    wf = steps_to_workflow(payload)
+    wf = steps_to_workflow(payload, registry)
     assert isinstance(wf.task_list[0], Task)
     assert wf.task_list[0].kwargs_parallel == {"a": 1}
     assert isinstance(wf.task_list[1], AttributeFilter)
@@ -218,7 +219,8 @@ def test_workflow_run_records_history(client):
                     value="A01",
                 )
             ],
-        )
+        ),
+        project.registry,
     )
     result = run_workflow(project)
     assert result.status == "completed"
