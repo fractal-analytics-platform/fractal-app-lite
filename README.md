@@ -1,7 +1,7 @@
 # Fractal Lite
 
 > [!WARNING]
-> This project is just a POC and not intended for production use.
+> This project is a proof of concept (POC). It is experimental, unstable, and not intended for production use.
 
 This project contains two main components:
 - fractal-lite: A minimalistic implementation of fractal core concepts (datasets, collection, tasks, workflows, projects, history) without need of a database.
