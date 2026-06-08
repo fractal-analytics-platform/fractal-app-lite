@@ -76,3 +76,10 @@ lint = "ruff check ."
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["e2e: slow end-to-end tests that build task pixi environments"]
+
+
+[tool.pixi.target.osx-arm64.pypi-dependencies]
+pywebview = {}
+
+[tool.pixi.target.linux-64.pypi-dependencies]
+pywebview = { extras = ["qt"] }
