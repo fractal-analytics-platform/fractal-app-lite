@@ -50,8 +50,10 @@ python = ".pixi/envs/dev"
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]
 
+
 [tool.pixi.pypi-dependencies]
 fractal_lite = { path = ".", editable = true }
+
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
@@ -71,7 +73,7 @@ build-frontend = { cmd = "npm install && npm run build", cwd = "src/frontend" }
 test = "pytest"
 test-fast = "pytest -m 'not e2e'"
 lint = "ruff check ."
-build-executable = "pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build"
+build-executable = "LD_LIBRARY_PATH=.pixi/envs/dev/lib pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
