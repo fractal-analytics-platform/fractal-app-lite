@@ -72,6 +72,7 @@ build-frontend = { cmd = "npm install && npm run build", cwd = "src/frontend" }
 test = "pytest"
 test-fast = "pytest -m 'not e2e'"
 lint = "ruff check ."
+build-executable = "pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

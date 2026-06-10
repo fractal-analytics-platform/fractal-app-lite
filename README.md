@@ -49,6 +49,16 @@ To open a previously saved project:
 pixi run app --open demo.flp
 ```
 
+## Build executable
+
+To generate multi-platform single executable files, run the following command **after building the frontend**:
+
+```bash
+pixi run build-executable
+```
+
+Generated executables are located in the `dist` folder.
+
 ## Development
 
 ### Tests

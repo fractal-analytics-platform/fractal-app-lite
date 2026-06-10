@@ -19,3 +19,8 @@ state.json
 *.flp
 # MacOS metadata files
 .DS_Store
+
+# pyinstaller files
+build/
+dist/
+fractal.spec
