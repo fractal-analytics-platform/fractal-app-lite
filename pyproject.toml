@@ -4,7 +4,6 @@ dependencies = [
     "pydantic",
     "fractal_task_tools",
     "polars",
-    "ngio",
     "fastapi",
     "uvicorn",
     "websockets",
