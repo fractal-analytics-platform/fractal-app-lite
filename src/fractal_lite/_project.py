@@ -242,7 +242,7 @@ class Project:
 
     def save_index(self) -> None:
         (self.project_dir / INDEX_FILENAME).write_text(
-            self.index.model_dump_json(indent=2)
+            self.index.model_dump_json(indent=2), encoding="utf-8"
         )
 
     def save_dataset(self) -> None:
@@ -264,12 +264,12 @@ class Project:
     def save_workflow(self) -> None:
         data = strip_task_schemas(self.workflow.model_dump(mode="json"))
         (self.project_dir / self.index.workflow_file).write_text(
-            json.dumps(data, indent=2)
+            json.dumps(data, indent=2), encoding="utf-8"
         )
 
     def save_sandbox_history(self) -> None:
         (self.project_dir / self.index.sandbox_history_file).write_text(
-            self.sandbox_history.to_json()
+            self.sandbox_history.to_json(), encoding="utf-8"
         )
 
     def save_workflow_history(self) -> None:
@@ -277,7 +277,7 @@ class Project:
         # task schemas embedded in each record's workflow snapshot.
         data = strip_task_schemas(json.loads(self.workflow_history.to_json()))
         (self.project_dir / self.index.workflow_history_file).write_text(
-            json.dumps(data, indent=2)
+            json.dumps(data, indent=2), encoding="utf-8"
         )
 
     def save_registry(self) -> None:

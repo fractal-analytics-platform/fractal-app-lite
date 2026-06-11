@@ -107,7 +107,9 @@ class TasksRegistry:
         Packages are not persisted: they are fully rebuilt from the sources on
         load (see :meth:`load_from_json`).
         """
-        Path(path).write_text(json.dumps(self.to_sources_dict(), indent=2))
+        Path(path).write_text(
+            json.dumps(self.to_sources_dict(), indent=2), encoding="utf-8"
+        )
 
     def load_from_json(self, path: str | Path) -> None:
         """Load a registry file and rebuild its packages from the stored sources.
