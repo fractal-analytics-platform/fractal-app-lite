@@ -35,7 +35,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, macos-latest, windows-latest]
-
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -55,20 +57,27 @@ jobs:
         run: pixi run build-executable
 
       - name: Rename artifact - Linux
-        run: mv dist/fractal "dist/fractal-${{ github.ref_name }}-linux"
+        run: mv dist/fractal "dist/fractal-${GH_REF_NAME}-linux"
         if: runner.os == 'Linux'
+        env:
+          GH_REF_NAME: ${{ github.ref_name }}
 
       - name: Rename artifact - macOS
-        run: mv dist/fractal "dist/fractal-${{ github.ref_name }}-mac"
+        run: mv dist/fractal "dist/fractal-${GH_REF_NAME}-mac"
         if: runner.os == 'macOS'
+        env:
+          GH_REF_NAME: ${{ github.ref_name }}
 
       - name: Rename artifact - Windows
-        run: mv dist/fractal.exe "dist/fractal-${{ github.ref_name }}.exe"
+        run: mv dist/fractal.exe "dist/fractal-${GH_REF_NAME}.exe"
         if: runner.os == 'Windows'
+        env:
+          GH_REF_NAME: ${{ github.ref_name }}
 
-      - run: gh release upload "${{ github.ref_name }}" "dist/fractal-${{ github.ref_name }}*"
+      - run: gh release upload "${GH_REF_NAME}" "dist/fractal-${GH_REF_NAME}*"
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
 
   publish-release:
     runs-on: ubuntu-latest
