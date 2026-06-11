@@ -115,10 +115,7 @@ def save_workflow(payload: dict, project: Project = Depends(require_project)) ->
     path = payload.get("path")
     if not path:
         raise HTTPException(status_code=400, detail="Missing 'path'.")
-    Path(path).write_text(
-        project.workflow.to_json(),
-        encoding="utf-8",
-    )
+    Path(path).write_text(project.workflow.to_json())
     return {"path": path}
 
 
@@ -144,10 +141,7 @@ def export_workflow_fractal(
     path = payload.get("path")
     if not path:
         raise HTTPException(status_code=400, detail="Missing 'path'.")
-    Path(path).write_text(
-        project.workflow.to_fractal_json(),
-        encoding="utf-8",
-    )
+    Path(path).write_text(project.workflow.to_fractal_json())
     return {"path": path}
 
 
