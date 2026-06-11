@@ -16,6 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend import workflow_service
+from backend._write_text import write_string_to_file
 from backend.jobs import Job, job_manager
 from backend.schemas import WorkflowPayload, WorkflowRunRequest
 from backend.state import require_project
@@ -115,7 +116,7 @@ def save_workflow(payload: dict, project: Project = Depends(require_project)) ->
     path = payload.get("path")
     if not path:
         raise HTTPException(status_code=400, detail="Missing 'path'.")
-    Path(path).write_text(project.workflow.to_json(), encoding="utf-8")
+    write_string_to_file(path, project.workflow.to_json())
     return {"path": path}
 
 
@@ -141,7 +142,7 @@ def export_workflow_fractal(
     path = payload.get("path")
     if not path:
         raise HTTPException(status_code=400, detail="Missing 'path'.")
-    Path(path).write_text(project.workflow.to_fractal_json(), encoding="utf-8")
+    write_string_to_file(path, project.workflow.to_fractal_json())
     return {"path": path}
 
 

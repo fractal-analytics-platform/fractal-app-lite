@@ -27,6 +27,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from backend._write_text import write_dict_to_file, write_string_to_file
 from fractal_lite.__version__ import __version__ as _APP_VERSION
 from fractal_lite._dataset import Dataset
 from fractal_lite._history import SandboxHistory, WorkflowHistory
@@ -241,8 +242,9 @@ class Project:
         self.save_index()
 
     def save_index(self) -> None:
-        (self.project_dir / INDEX_FILENAME).write_text(
-            self.index.model_dump_json(indent=2), encoding="utf-8"
+        write_string_to_file(
+            self.project_dir / INDEX_FILENAME,
+            self.index.model_dump_json(indent=2),
         )
 
     def save_dataset(self) -> None:
@@ -263,22 +265,19 @@ class Project:
 
     def save_workflow(self) -> None:
         data = strip_task_schemas(self.workflow.model_dump(mode="json"))
-        (self.project_dir / self.index.workflow_file).write_text(
-            json.dumps(data, indent=2), encoding="utf-8"
-        )
+        write_dict_to_file(self.project_dir / self.index.workflow_file, data)
 
     def save_sandbox_history(self) -> None:
-        (self.project_dir / self.index.sandbox_history_file).write_text(
-            self.sandbox_history.to_json(), encoding="utf-8"
+        write_string_to_file(
+            self.project_dir / self.index.sandbox_history_file,
+            self.sandbox_history.to_json(),
         )
 
     def save_workflow_history(self) -> None:
         # Reuse History.to_json (summary truncation), then blank the regenerable
         # task schemas embedded in each record's workflow snapshot.
         data = strip_task_schemas(json.loads(self.workflow_history.to_json()))
-        (self.project_dir / self.index.workflow_history_file).write_text(
-            json.dumps(data, indent=2), encoding="utf-8"
-        )
+        write_dict_to_file(self.project_dir / self.index.workflow_history_file, data)
 
     def save_registry(self) -> None:
         self.registry.dump_to_json(self.project_dir / self.index.registry_file)
