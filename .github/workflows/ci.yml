@@ -25,3 +25,5 @@ jobs:
           environments: dev
 
       - run: pixi run -e dev test-fast
+        env:
+          PYTHONUTF8: 1
