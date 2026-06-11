@@ -56,15 +56,10 @@ jobs:
       - name: Build executable
         run: pixi run build-executable
 
-      - name: Rename artifact - Linux
-        run: mv dist/fractal "dist/fractal-${GH_REF_NAME}-linux"
-        if: runner.os == 'Linux'
-        env:
-          GH_REF_NAME: ${{ github.ref_name }}
 
-      - name: Rename artifact - macOS
+      - name: Rename artifact - Linux/macOS
         run: mv dist/fractal "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}"
-        if: runner.os == 'macOS'
+        if: runner.os != 'Windows'
         env:
           GH_REF_NAME: ${{ github.ref_name }}
           MATRIX_OS: ${{ matrix.os }}
