@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-import polars as pl
+# import polars as pl
 # from ngio import open_ome_zarr_container, open_ome_zarr_plate
 from pydantic import BaseModel, Field, model_validator
 
@@ -212,11 +212,13 @@ class Dataset(BaseModel):
             # Types are written as prefixed columns so they reload into ``types``.
             row.update({f"{_TYPE_PREFIX}{k}": v for k, v in zu.types.items()})
             rows.append(row)
+        raise NotImplementedError("This is a slim version, with no polars.")
         pl.DataFrame(rows).write_csv(path)
 
     @classmethod
     def from_csv(cls, path: str | Path) -> "Dataset":
         path = Path(path)
+        raise NotImplementedError("This is a slim version, with no polars.")
         df = pl.read_csv(path)
         if df.is_empty():
             raise ValueError(
