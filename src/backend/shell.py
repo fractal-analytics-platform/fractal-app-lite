@@ -104,10 +104,16 @@ def main() -> None:
         if p.is_dir():
             _open_project(str(p))
         else:
-            logger.error("Project directory not found: %s — starting fresh.", args.open_dir)
+            logger.error(
+                "Project directory not found: %s — starting fresh.", args.open_dir
+            )
 
     window = webview.create_window(
-        _TITLE, url, width=_WINDOW_SIZE[0], height=_WINDOW_SIZE[1], zoomable=True,
+        _TITLE,
+        url,
+        width=_WINDOW_SIZE[0],
+        height=_WINDOW_SIZE[1],
+        zoomable=True,
     )
     # Expose the window to the FS dialog bridge so the frontend can open native
     # file/dir dialogs through the backend.

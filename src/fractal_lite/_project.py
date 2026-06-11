@@ -171,9 +171,9 @@ class Project:
 
         workflow_path = project_dir / index.workflow_file
         if workflow_path.exists():
-            workflow = Workflow.from_json(
-                workflow_path.read_text()
-            ).resolve_schemas(registry)
+            workflow = Workflow.from_json(workflow_path.read_text()).resolve_schemas(
+                registry
+            )
         else:
             workflow = Workflow(name=index.name)
 

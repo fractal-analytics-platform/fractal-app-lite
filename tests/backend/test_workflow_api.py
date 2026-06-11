@@ -242,8 +242,6 @@ def test_project_persists_workflow(seeded_client):
 
     # Drop the open project, then re-open it from disk; the workflow round-trips.
     state.set_project(None)
-    opened = seeded_client.post(
-        "/api/project/open", json={"project_dir": project_dir}
-    )
+    opened = seeded_client.post("/api/project/open", json={"project_dir": project_dir})
     assert opened.status_code == 200
     assert seeded_client.get("/api/workflow").json()["name"] == "InSession"
