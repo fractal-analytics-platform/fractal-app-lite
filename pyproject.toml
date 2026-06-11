@@ -15,7 +15,7 @@ version = "0.1.0"
 description = "FastAPI + Svelte desktop port of the Fractal Tasks Sandbox."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-cov", "httpx", "pyinstaller"]
+dev = ["ruff", "pytest", "pytest-cov", "httpx"]
 build = ["pyinstaller"]
 
 [project.scripts]
