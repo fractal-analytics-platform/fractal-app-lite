@@ -64,13 +64,33 @@ def test_validator_accepts_symlinked_zarr_dir(tmp_path):
 
 
 def test_csv_round_trip(tmp_path):
-    ds = _dataset()
+    zarr_dir = tmp_path / "z"
+    zarr_url_A0 = zarr_dir / "A" / "0"
+    zarr_url_B0 = zarr_dir / "B" / "0"
+    ds = Dataset(
+        name="ds",
+        zarr_dir=str(zarr_dir),
+        zarr_urls=[
+            ZarrUrl(
+                url=str(zarr_url_A0),
+                attributes={"plate": "p1", "well": "A"},
+                types={"is_3D": True},
+                active=True,
+            ),
+            ZarrUrl(
+                url=str(zarr_url_B0),
+                attributes={"plate": "p1", "well": "B"},
+                types={"is_3D": False},
+                active=False,
+            ),
+        ],
+    )
     csv = tmp_path / "ds.csv"
     ds.to_csv(csv)
     loaded = Dataset.from_csv(csv)
 
     # zarr_dir is re-inferred from the common parent of all urls.
-    assert loaded.zarr_dir == "/data/z"
+    assert loaded.zarr_dir == str(zarr_dir)
 
     def key(d: Dataset):
         return sorted(
