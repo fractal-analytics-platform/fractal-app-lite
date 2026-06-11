@@ -328,8 +328,8 @@ def test_add_store_empty_dataset_adopts_parent_dir(proj_client, monkeypatch, tmp
     )
     # Store lives outside the original zarr_dir; since the dataset is empty the
     # store's parent folder is adopted as the new zarr_dir.
-    new_zarr_dir = tmp_path.as_posix()
-    store_path = (tmp_path / "img.zarr").as_posix()
+    new_zarr_dir = str(tmp_path)
+    store_path = str(tmp_path / "img.zarr")
     res = proj_client.post("/api/dataset/add-store", json={"path": store_path})
     assert res.status_code == 200
     ds = res.json()["dataset"]
