@@ -197,9 +197,7 @@ def clear_images(project: Project = Depends(require_project)) -> DatasetPayload:
 
 
 @router.post("/save-csv")
-def save_csv(
-    payload: PathPayload, project: Project = Depends(require_project)
-) -> dict:
+def save_csv(payload: PathPayload, project: Project = Depends(require_project)) -> dict:
     """Write the dataset to a CSV file on disk (reuses Dataset.to_csv)."""
     try:
         project.dataset.to_csv(payload.path)

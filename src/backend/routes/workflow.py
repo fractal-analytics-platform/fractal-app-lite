@@ -36,9 +36,7 @@ def set_workflow(
 ) -> dict:
     """Replace the current workflow with the frontend's step list."""
     try:
-        project.workflow = workflow_service.steps_to_workflow(
-            payload, project.registry
-        )
+        project.workflow = workflow_service.steps_to_workflow(payload, project.registry)
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     project.save_workflow()

@@ -447,9 +447,7 @@ def test_dataset_and_project_roundtrip(proj_client, tmp_path):
     state.set_project(None)
     assert proj_client.get("/api/dataset").json()["dataset"] is None
 
-    opened = proj_client.post(
-        "/api/project/open", json={"project_dir": project_dir}
-    )
+    opened = proj_client.post("/api/project/open", json={"project_dir": project_dir})
     assert opened.status_code == 200
     ds = proj_client.get("/api/dataset").json()["dataset"]
     assert [zu["url"] for zu in ds["zarr_urls"]] == ["/tmp/z/A"]
