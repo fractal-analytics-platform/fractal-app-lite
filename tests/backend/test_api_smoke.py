@@ -318,7 +318,7 @@ def test_add_store_adds_image_under_zarr_dir(proj_client, monkeypatch):
     assert "/tmp/z/img.zarr" in urls
 
 
-def test_add_store_empty_dataset_adopts_parent_dir(proj_client, monkeypatch):
+def test_add_store_empty_dataset_adopts_parent_dir(proj_client, monkeypatch, tmp_path):
     from fractal_lite import _dataset
 
     monkeypatch.setattr(_dataset, "open_ome_zarr_container", _fake_image_opener)
@@ -328,13 +328,13 @@ def test_add_store_empty_dataset_adopts_parent_dir(proj_client, monkeypatch):
     )
     # Store lives outside the original zarr_dir; since the dataset is empty the
     # store's parent folder is adopted as the new zarr_dir.
-    res = proj_client.post(
-        "/api/dataset/add-store", json={"path": "/data/external/img.zarr"}
-    )
+    new_zarr_dir = tmp_path.as_posix()
+    store_path = (tmp_path / "img.zarr").as_posix()
+    res = proj_client.post("/api/dataset/add-store", json={"path": store_path})
     assert res.status_code == 200
     ds = res.json()["dataset"]
-    assert ds["zarr_dir"] == "/data/external"
-    assert [zu["url"] for zu in ds["zarr_urls"]] == ["/data/external/img.zarr"]
+    assert ds["zarr_dir"] == new_zarr_dir
+    assert [zu["url"] for zu in ds["zarr_urls"]] == [store_path]
 
 
 def test_add_store_outside_zarr_dir_is_400_when_non_empty(proj_client, monkeypatch):

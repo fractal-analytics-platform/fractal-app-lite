@@ -38,7 +38,7 @@ def export_params(req: ExportRequest) -> dict:
         "kwargs_parallel": req.kwargs_parallel or None,
     }
     try:
-        Path(req.path).write_text(json.dumps(payload, indent=2))
+        Path(req.path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"path": req.path}
