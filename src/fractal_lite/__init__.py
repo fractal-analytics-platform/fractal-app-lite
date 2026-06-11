@@ -2,6 +2,8 @@
 
 import os
 
+os.environ["PYTHONUTF8"] = "1"
+
 from fractal_lite.__version__ import __version__
 from fractal_lite._dataset import Dataset, ZarrUrl
 from fractal_lite._execution import Cancellation, RunCancelled, RunMetrics
@@ -18,8 +20,6 @@ from fractal_lite._registry import TasksRegistry
 from fractal_lite._runner import RunResult, run_task, run_workflow
 from fractal_lite._tasks import ConverterCompoundTask, ParallelTask, Task
 from fractal_lite._workflow import Workflow
-
-os.environ["PYTHONUTF8"] = "1"
 
 __all__ = [
     "Cancellation",
