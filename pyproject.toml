@@ -75,7 +75,7 @@ test = "pytest"
 test-fast = "pytest -m 'not e2e'"
 lint = "ruff check ."
 [tool.pixi.feature.build.tasks]
-build-executable = "LD_LIBRARY_PATH=.pixi/envs/default/lib pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build --exclude-module PyQt6.Qt3D --exclude-module PyQt6.QtMultimedia --paths .pixi/envs/default/lib/"
+build-executable = "pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build --exclude-module PyQt6.Qt3D --exclude-module PyQt6.QtMultimedia --paths .pixi/envs/default/lib/"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
