@@ -57,12 +57,12 @@ jobs:
         run: pixi run build-executable
 
       - name: Set artifact suffix (Windows)
-        run: echo "artifact_suffix='.exe'" >> "$GITHUB_ENV"
+        run: echo "artifact_suffix=.exe" >> "$GITHUB_ENV"
         if: runner.os == 'Windows'
 
-      - name: Set artifact suffix (non-Windows)
-        run: echo "artifact_suffix=''" >> "$GITHUB_ENV"
-        if: runner.os != 'Windows'
+      # - name: Set artifact suffix (non-Windows)
+      #   run: echo "artifact_suffix=''" >> "$GITHUB_ENV"
+      #   if: runner.os != 'Windows'
 
       - name: Print artifact suffix
         run: echo "${ARTIFACT_SUFFIX}"
