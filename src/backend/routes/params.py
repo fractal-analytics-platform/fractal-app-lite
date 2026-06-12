@@ -12,6 +12,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from fractal_lite._write_text import write_dict_to_file
+
 router = APIRouter(prefix="/api/params", tags=["params"])
 
 
@@ -38,7 +40,7 @@ def export_params(req: ExportRequest) -> dict:
         "kwargs_parallel": req.kwargs_parallel or None,
     }
     try:
-        Path(req.path).write_text(json.dumps(payload, indent=2))
+        write_dict_to_file(req.path, payload)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"path": req.path}
