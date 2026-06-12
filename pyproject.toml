@@ -87,3 +87,6 @@ pywebview = {}
 
 [tool.pixi.target.linux-64.pypi-dependencies]
 pywebview = { extras = ["qt"] }
+
+[tool.pixi.target.osx-64.pypi-dependencies]
+pyicu = {}
