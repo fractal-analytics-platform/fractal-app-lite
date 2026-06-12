@@ -64,6 +64,10 @@ jobs:
         run: echo "artifact_suffix=''" >> "$GITHUB_ENV"
         if: runner.os != 'Windows'
 
+      - name: Print artifact suffix
+        run: echo "${ARTIFACT_SUFFIX}"
+        env:
+          ARTIFACT_SUFFIX: ${{ env.artifact_suffix }}
 
       - name: Rename artifact
         run: mv "dist/fractal${ARTIFACT_SUFFIX}" "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${ARTIFACT_SUFFIX}"
