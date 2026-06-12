@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend._write_text import write_dict_to_file
+from fractal_lite._write_text import write_dict_to_file
 
 router = APIRouter(prefix="/api/params", tags=["params"])
 

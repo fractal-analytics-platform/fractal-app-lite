@@ -3,7 +3,6 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from backend._write_text import write_dict_to_file
 from fractal_lite._collect import (
     _fractal_collection_dir,
     _recompute_version,
@@ -13,6 +12,7 @@ from fractal_lite._collect import (
     collect_from_targz,
 )
 from fractal_lite._tasks import Task, TaskSourceInfo
+from fractal_lite._write_text import write_dict_to_file
 
 
 class TasksRegistryModel(BaseModel):

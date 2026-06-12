@@ -16,11 +16,11 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend import workflow_service
-from backend._write_text import write_string_to_file
 from backend.jobs import Job, job_manager
 from backend.schemas import WorkflowPayload, WorkflowRunRequest
 from backend.state import require_project
 from fractal_lite import Project, Workflow, run_workflow
+from fractal_lite._write_text import write_string_to_file
 
 router = APIRouter(prefix="/api/workflow", tags=["workflow"])
 

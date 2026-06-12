@@ -27,12 +27,12 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from backend._write_text import write_dict_to_file, write_string_to_file
 from fractal_lite.__version__ import __version__ as _APP_VERSION
 from fractal_lite._dataset import Dataset
 from fractal_lite._history import SandboxHistory, WorkflowHistory
 from fractal_lite._registry import TasksRegistry
 from fractal_lite._workflow import Workflow, strip_task_schemas
+from fractal_lite._write_text import write_dict_to_file, write_string_to_file
 
 # Name of the index file at the root of every project directory.
 INDEX_FILENAME = "project.json"
