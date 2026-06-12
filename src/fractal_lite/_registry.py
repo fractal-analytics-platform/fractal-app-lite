@@ -12,6 +12,7 @@ from fractal_lite._collect import (
     collect_from_targz,
 )
 from fractal_lite._tasks import Task, TaskSourceInfo
+from fractal_lite._write_text import write_dict_to_file
 
 
 class TasksRegistryModel(BaseModel):
@@ -107,7 +108,7 @@ class TasksRegistry:
         Packages are not persisted: they are fully rebuilt from the sources on
         load (see :meth:`load_from_json`).
         """
-        Path(path).write_text(json.dumps(self.to_sources_dict(), indent=2))
+        write_dict_to_file(path, self.to_sources_dict())
 
     def load_from_json(self, path: str | Path) -> None:
         """Load a registry file and rebuild its packages from the stored sources.
