@@ -82,11 +82,11 @@ testpaths = ["tests"]
 markers = ["e2e: slow end-to-end tests that build task pixi environments"]
 
 
-[tool.pixi.target.osx-arm64.pypi-dependencies]
-pywebview = {}
-
 [tool.pixi.target.linux-64.pypi-dependencies]
 pywebview = { extras = ["qt"] }
 
 [tool.pixi.target.osx-64.pypi-dependencies]
+pyicu = {}
+
+[tool.pixi.target.osx-arm64.pypi-dependencies]
 pyicu = {}
