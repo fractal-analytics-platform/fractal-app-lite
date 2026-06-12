@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-latest]
+        os: [ubuntu-22.04, macos-latest, windows-latest, macos-15-intel, macos-26-intel]
     defaults:
       run:
         shell: bash
@@ -56,28 +56,40 @@ jobs:
       - name: Build executable
         run: pixi run build-executable
 
-      - name: Rename artifact - Linux
-        run: mv dist/fractal "dist/fractal-${GH_REF_NAME}-linux"
-        if: runner.os == 'Linux'
-        env:
-          GH_REF_NAME: ${{ github.ref_name }}
-
-      - name: Rename artifact - macOS
-        run: mv dist/fractal "dist/fractal-${GH_REF_NAME}-mac"
-        if: runner.os == 'macOS'
-        env:
-          GH_REF_NAME: ${{ github.ref_name }}
-
-      - name: Rename artifact - Windows
-        run: mv dist/fractal.exe "dist/fractal-${GH_REF_NAME}.exe"
+      - name: Set artifact suffix (Windows)
+        run: echo "artifact_suffix=.exe" >> "$GITHUB_ENV"
         if: runner.os == 'Windows'
+
+      - name: Print artifact suffix
+        run: echo "artifact suffix is ${artifact_suffix}"
+        env:
+          artifact_suffix: ${{ env.artifact_suffix }}
+
+      - name: Rename artifact
+        run: mv "dist/fractal${artifact_suffix}" "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}"
         env:
           GH_REF_NAME: ${{ github.ref_name }}
+          MATRIX_OS: ${{ matrix.os }}
+          artifact_suffix: ${{ env.artifact_suffix }}
 
-      - run: gh release upload "${GH_REF_NAME}" "dist/fractal-${GH_REF_NAME}*"
+      - name: Test artifact
+        run: |
+          chmod +x "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}"
+          ./dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}
+        env:
+          GH_REF_NAME: ${{ github.ref_name }}
+          MATRIX_OS: ${{ matrix.os }}
+          artifact_suffix: ${{ env.artifact_suffix }}
+        timeout-minutes: 1
+        continue-on-error: true
+
+      - run: gh release upload "${GH_REF_NAME}" "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}"
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REF_NAME: ${{ github.ref_name }}
+          artifact_suffix: ${{ env.artifact_suffix }}
+          MATRIX_OS: ${{ matrix.os }}
+
 
   publish-release:
     runs-on: ubuntu-latest
