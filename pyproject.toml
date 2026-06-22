@@ -66,7 +66,7 @@ serve = "uvicorn backend.main:app --host 127.0.0.1 --port 8765"
 # Launch the native desktop app.
 app = "python -m backend.shell"
 # Clone fractal-web at the pinned tag into the repo root (idempotent).
-clone-fractal-web = { cmd = "git clone --branch v1.27.11 --depth 1 https://github.com/fractal-analytics-platform/fractal-web.git fractal-web-clone || echo 'fractal-web-clone already exists, skipping'" }
+clone-fractal-web = { cmd = "git clone --branch v1.28.3 --depth 1 https://github.com/fractal-analytics-platform/fractal-web.git fractal-web-clone || echo 'fractal-web-clone already exists, skipping'" }
 # Install JS deps and build the static SvelteKit app.
 build-frontend = { cmd = "npm install && npm run build", cwd = "src/frontend" }
 
