@@ -43,3 +43,6 @@ pyicu = {}
 
 [target.osx-arm64.pypi-dependencies]
 pyicu = {}
+
+[dependencies]
+python = ">=3.14.6,<3.15"
