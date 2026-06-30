@@ -1,0 +1,45 @@
+
+[workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
+
+
+[pypi-dependencies]
+fractal_lite = { path = ".", editable = true }
+
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+build = { features = ["build"], solve-group = "default" }
+
+[tasks]
+# Run the API server alone (serves the built frontend if present).
+serve = "uvicorn backend.main:app --host 127.0.0.1 --port 8765"
+# Launch the native desktop app.
+app = "python -m backend.shell"
+# Clone fractal-web at the pinned tag into the repo root (idempotent).
+clone-fractal-web = { cmd = "git clone --branch v1.28.3 --depth 1 https://github.com/fractal-analytics-platform/fractal-web.git fractal-web-clone || echo 'fractal-web-clone already exists, skipping'" }
+# Install JS deps and build the static SvelteKit app.
+build-frontend = { cmd = "npm install && npm run build", cwd = "src/frontend" }
+
+[feature.dev.tasks]
+test = "pytest"
+test-fast = "pytest -m 'not e2e'"
+lint = "ruff check ."
+[feature.build.tasks]
+build-executable = "LD_LIBRARY_PATH=.pixi/envs/default/lib pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build --exclude-module PyQt6.Qt3D --exclude-module PyQt6.QtMultimedia --paths .pixi/envs/default/lib/"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["e2e: slow end-to-end tests that build task pixi environments"]
+
+
+[target.linux-64.pypi-dependencies]
+pywebview = { extras = ["qt"] }
+
+[target.osx-64.pypi-dependencies]
+pyicu = {}
+
+[target.osx-arm64.pypi-dependencies]
+pyicu = {}
