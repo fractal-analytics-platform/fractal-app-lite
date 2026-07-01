@@ -3,7 +3,7 @@ authors = [{ name = "lorenzo", email = "lorenzo.cerrone@uzh.ch" }]
 dependencies = [
     "pydantic",
     "fastapi",
-    "uvicorn",
+    "uvicorn[standard]",
     "pywebview",
     "ngio",
     "polars",
