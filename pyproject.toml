@@ -7,7 +7,7 @@ dependencies = [
     "pywebview",
     "ngio",
     "polars",
-
+    "certifi",
 ]
 name = "fractal-lite"
 requires-python = ">= 3.11"
