@@ -26,6 +26,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REF_NAME: ${{ github.ref_name }}
 
+  build-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11
+
+      - name: Build fractal-web components
+        run: |
+          pixi run clone-fractal-web
+          cd fractal-web-clone/components && npm install --omit=peer
+
+      - name: Build frontend
+        run: pixi run build-frontend
+
+      - name: Create frontend package
+        run: tar -czf fractal-app-lite-frontend-${GH_REF_NAME}.tar.gz -C src/frontend/build .
+        env:
+          GH_REF_NAME: ${{ github.ref_name }}
+
+      - run: gh release upload "${GH_REF_NAME}" "fractal-app-lite-frontend-${GH_REF_NAME}.tar.gz"
+        env:
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+
   build:
     runs-on: ${{ matrix.os }}
     needs: create-release-draft
@@ -95,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [build]
+    needs: [build-frontend, build]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
