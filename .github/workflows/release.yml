@@ -119,14 +119,38 @@ jobs:
       - name: Compile TypeScript (electron-vite)
         run: npm run build
 
+      # macOS DMG creation intermittently fails with `hdiutil detach ...
+      # Resource busy` because Spotlight (mds/mdworker) grabs a lock on the
+      # freshly-mounted disk image right as electron-builder tries to eject
+      # it. Turning off indexing avoids the race.
+      - name: Disable Spotlight indexing (macOS only)
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off
+
       # Pass explicit --platform --arch flags so electron-builder ignores the arch
       # arrays in electron-builder.yml and only builds what this runner can produce.
       # PyInstaller binaries are platform-specific, so cross-compiling is not possible.
       # --publish never: with GH_TOKEN set on a tag build, electron-builder would
       # otherwise auto-publish its artifacts (incl. blockmaps and latest*.yml) to
       # the GitHub Release, bypassing the filtered upload step below.
+      # Retried a few times: even with Spotlight off, the DMG step can still
+      # hit the same transient hdiutil race on a loaded runner.
       - name: Package with electron-builder
-        run: npx electron-builder ${{ matrix.eb_flags }} --publish never
+        shell: bash
+        run: |
+          n=0
+          until npx electron-builder ${{ matrix.eb_flags }} --publish never; do
+            n=$((n + 1))
+            if [ "$n" -ge 3 ]; then
+              echo "electron-builder failed after $n attempts"
+              exit 1
+            fi
+            echo "electron-builder failed (attempt $n/3) — force-detaching any stuck disk images, retrying in 10s..."
+            if [ "$(uname -s)" = "Darwin" ]; then
+              hdiutil info | awk '/^\/dev\/disk/ {print $1}' | xargs -I{} hdiutil detach -force {} 2>/dev/null || true
+            fi
+            sleep 10
+          done
         env:
           # Authenticates electron-builder's GitHub downloads (Electron binary, etc.)
           # without hitting anonymous rate limits.
@@ -231,6 +255,7 @@ jobs:
       # generated in the first place.
       - name: Upload to GitHub Release
         if: github.ref_type == 'tag'
+        shell: bash
         run: gh release upload "${GH_REF_NAME}" "$ARTIFACT_PATH" --clobber
         env:
           GH_TOKEN: ${{ github.token }}
