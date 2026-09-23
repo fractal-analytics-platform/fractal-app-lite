@@ -135,6 +135,10 @@ fi
 # importlib or entry_points — those dynamic imports are invisible to static
 # analysis and would be silently missing from the bundle without --collect-all.
 #
+# numcodecs and zarr call importlib.metadata.version() on themselves at import
+# time, so their dist-info metadata must be bundled too (--collect-all copies
+# it). Without it the backend crashes with PackageNotFoundError on startup.
+#
 # --exclude-module drops packages from the original pywebview-based entry
 # point. They are declared as optional dependencies so PyInstaller's analysis
 # would pull them in; excluding them keeps the bundle smaller.
@@ -159,6 +163,8 @@ echo "==> Running PyInstaller..."
   --collect-all pydantic \
   --collect-all ngio \
   --collect-all polars \
+  --collect-all zarr \
+  --collect-all numcodecs \
   --exclude-module webview \
   --exclude-module PyQt6 \
   --exclude-module PyQt5 \
