@@ -16,9 +16,32 @@ on:
 permissions: {}
 
 jobs:
+  # Create the release as a draft first. Draft releases are always mutable, so
+  # the 5 matrix jobs below can each upload their own asset to it concurrently
+  # without racing — uploading straight to a freshly-created *published*
+  # release (e.g. via softprops/action-gh-release per matrix job) fails with
+  # "Cannot upload asset to an immutable release" when two jobs hit it at once.
+  create-release-draft:
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - run: gh release create "${GH_REF_NAME}" --draft --title "${GH_REF_NAME}" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
+
   build:
     name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+    needs: create-release-draft
+    # create-release-draft is skipped (not failed) on a workflow_dispatch run,
+    # since there's no tag to attach a release to — still build in that case.
+    if: ${{ !cancelled() && !failure() }}
     permissions:
       contents: write
     # All the Electron/npm tooling (package.json, scripts/, etc.) lives in
@@ -122,7 +145,9 @@ jobs:
             windows-x64) ext=exe ;;
           esac
           src=$(find dist-electron -maxdepth 1 -name "*.${ext}")
-          mv "$src" "dist-electron/${GH_REF_NAME}-FractalLite-${MATRIX_OS}.${ext}"
+          dest="dist-electron/${GH_REF_NAME}-FractalLite-${MATRIX_OS}.${ext}"
+          mv "$src" "$dest"
+          echo "ARTIFACT_PATH=$dest" >> "$GITHUB_ENV"
         env:
           GH_REF_NAME: ${{ github.ref_name }}
           MATRIX_OS: ${{ matrix.os }}
@@ -198,22 +223,18 @@ jobs:
           kill $PID 2>/dev/null || true
           rm -f "$LOG"
 
-      # On tag pushes: upload the distributable to a GitHub Release.
-      # All five jobs upload to the same release; the first one creates it.
+      # On tag pushes: upload this platform's installer to the draft release
+      # created by create-release-draft (still mutable, so no upload races).
+      # We only upload the installer — the auto-update metadata (latest*.yml,
+      # *.blockmap) is unused since the app has no electron-updater, and
+      # publish: null in electron-builder.yml already keeps it from being
+      # generated in the first place.
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         if: github.ref_type == 'tag'
-        with:
-          generate_release_notes: true
-          # Upload only the installers — the auto-update metadata (latest*.yml,
-          # *.blockmap) is unused since the app has no electron-updater.
-          # actions/*, unlike `run:` steps, don't inherit defaults.working-directory,
-          # so these paths are spelled out relative to the repo root.
-          files: |
-            electron/dist-electron/*.AppImage
-            electron/dist-electron/*.dmg
-            electron/dist-electron/*.exe
-          fail_on_unmatched_files: false
+        run: gh release upload "${GH_REF_NAME}" "$ARTIFACT_PATH" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
 
       # On manual runs (workflow_dispatch): expose the build as a downloadable artifact.
       - name: Upload workflow artifact
@@ -223,3 +244,18 @@ jobs:
           name: dist-${{ matrix.platform }}
           path: electron/dist-electron/
           retention-days: 7
+
+  publish-release:
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: write
+    needs: [build]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - run: gh release edit "${GH_REF_NAME}" --draft=false
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
