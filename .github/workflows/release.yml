@@ -1,106 +1,225 @@
 name: Create GitHub release
+
+# Runs on every v3.x.y tag push → uploads to a GitHub Release.
+# Can also be triggered manually from the Actions tab → uploads as workflow artifacts (7 days).
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+[a-c][0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-[a-c][0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+alpha[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+beta[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+      - 'v3.[0-9]+.[0-9]+'
+      - 'v3.[0-9]+.[0-9]+[a-c][0-9]+'
+      - 'v3.[0-9]+.[0-9]+-[a-c][0-9]+'
+      - 'v3.[0-9]+.[0-9]+alpha[0-9]+'
+      - 'v3.[0-9]+.[0-9]+beta[0-9]+'
+      - 'v3.[0-9]+.[0-9]+rc[0-9]+'
+  workflow_dispatch:
 
 permissions: {}
 
-
 jobs:
-  create-release-draft:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          persist-credentials: false
-      - run: gh release create "${GH_REF_NAME}" --draft --title "${GH_REF_NAME}"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REF_NAME: ${{ github.ref_name }}
-
   build:
+    name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
-    needs: create-release-draft
     permissions:
       contents: write
+    # All the Electron/npm tooling (package.json, scripts/, etc.) lives in
+    # electron/, alongside the Python/SvelteKit source at the repo root.
+    defaults:
+      run:
+        working-directory: electron
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-26, windows-2025, macos-15-intel, macos-26-intel]
-    defaults:
-      run:
+        include:
+          - os: ubuntu-22.04
+            platform: linux-x64
+            eb_flags: --linux --x64
+
+          - os: macos-26
+            platform: macos-arm64
+            eb_flags: --mac --arm64
+
+          - os: macos-26-intel
+            platform: macos-26-x64
+            eb_flags: --mac --x64
+
+          - os: macos-15-intel
+            platform: macos-15-x64
+            eb_flags: --mac --x64
+
+          - os: windows-2025
+            platform: windows-x64
+            eb_flags: --win --x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set version from tag
+        if: github.ref_type == 'tag'
         shell: bash
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          persist-credentials: false
-
-      - uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11
-
-      - name: Build fractal-web components
         run: |
-          pixi run clone-fractal-web
-          cd fractal-web-clone/components && npm install --omit=peer
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
 
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      # Python is needed by the vite.config.js patch (python3 heredoc in the build script).
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      # The two build steps are separate so the Actions UI reports their
+      # durations individually. shell: bash ensures Git Bash is used on Windows.
+
+      # Builds the SvelteKit frontend (npm ci + npm run build in src/frontend/).
       - name: Build frontend
-        run: pixi run build-frontend
+        shell: bash
+        run: bash scripts/build-frontend.sh
 
-      - name: Build executable
-        run: pixi run build-executable
+      # Builds the PyInstaller onedir binary (with the frontend baked in),
+      # placing it under resources/.
+      - name: Build Python binary
+        shell: bash
+        run: bash scripts/build-backend.sh
 
-      - name: Set artifact suffix (Windows)
-        run: echo "artifact_suffix=.exe" >> "$GITHUB_ENV"
-        if: runner.os == 'Windows'
+      - name: Compile TypeScript (electron-vite)
+        run: npm run build
 
-      - name: Print artifact suffix
-        run: echo "artifact suffix is ${artifact_suffix}"
+      # Pass explicit --platform --arch flags so electron-builder ignores the arch
+      # arrays in electron-builder.yml and only builds what this runner can produce.
+      # PyInstaller binaries are platform-specific, so cross-compiling is not possible.
+      # --publish never: with GH_TOKEN set on a tag build, electron-builder would
+      # otherwise auto-publish its artifacts (incl. blockmaps and latest*.yml) to
+      # the GitHub Release, bypassing the filtered upload step below.
+      - name: Package with electron-builder
+        run: npx electron-builder ${{ matrix.eb_flags }} --publish never
         env:
-          artifact_suffix: ${{ env.artifact_suffix }}
+          # Authenticates electron-builder's GitHub downloads (Electron binary, etc.)
+          # without hitting anonymous rate limits.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # electron-builder's artifactName template (${os}-${arch}) can't tell
+      # macos-15-intel and macos-26-intel apart — both build "mac-x64" and
+      # would collide when uploaded to the same release. Rename to embed the
+      # actual runner and tag instead, matching v2's `<tag>-<name>-<os>` scheme.
       - name: Rename artifact
-        run: mv "dist/fractal${artifact_suffix}" "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}"
-        env:
-          GH_REF_NAME: ${{ github.ref_name }}
-          MATRIX_OS: ${{ matrix.os }}
-          artifact_suffix: ${{ env.artifact_suffix }}
-
-      - name: Test artifact
+        shell: bash
         run: |
-          chmod +x "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}"
-          ./dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}
+          case "${{ matrix.platform }}" in
+            linux-x64) ext=AppImage ;;
+            macos-arm64|macos-26-x64|macos-15-x64) ext=dmg ;;
+            windows-x64) ext=exe ;;
+          esac
+          src=$(find dist-electron -maxdepth 1 -name "*.${ext}")
+          mv "$src" "dist-electron/${GH_REF_NAME}-FractalLite-${MATRIX_OS}.${ext}"
         env:
           GH_REF_NAME: ${{ github.ref_name }}
           MATRIX_OS: ${{ matrix.os }}
-          artifact_suffix: ${{ env.artifact_suffix }}
-        timeout-minutes: 1
-        continue-on-error: true
 
-      - run: gh release upload "${GH_REF_NAME}" "dist/fractal-${GH_REF_NAME}-${MATRIX_OS}${artifact_suffix}"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REF_NAME: ${{ github.ref_name }}
-          artifact_suffix: ${{ env.artifact_suffix }}
-          MATRIX_OS: ${{ matrix.os }}
+      - name: Report bundle sizes
+        shell: bash
+        run: |
+          echo "=== Distributable ==="
+          ls -lh dist-electron/*.AppImage dist-electron/*.dmg dist-electron/*.exe 2>/dev/null || true
 
+          echo ""
+          echo "=== PyInstaller bundle ==="
+          BUNDLE=$(find dist-electron -maxdepth 6 -type d -name 'fractal-app-lite' | head -1)
+          echo "Path: $BUNDLE"
+          du -sh "$BUNDLE"
 
-  publish-release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    needs: [build]
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+          echo "  executable:"
+          find "$BUNDLE" -maxdepth 1 -name 'fractal-app-lite*' ! -type d -exec du -sh {} \;
+
+          echo "  _internal/:"
+          du -sh "$BUNDLE/_internal"
+
+          echo "  _internal/frontend/ (SvelteKit):"
+          du -sh "$BUNDLE/_internal/frontend"
+
+          echo ""
+          echo "=== Top 15 packages in _internal (by size) ==="
+          du -sh "$BUNDLE/_internal/"*/ 2>/dev/null | sort -rh | head -15
+
+      - name: Install Xvfb (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y xvfb
+
+      - name: Measure startup time
+        shell: bash
+        run: |
+          # Find the Electron wrapper produced by electron-builder for this platform.
+          # Linux:   linux-unpacked/<executableName>  (shell wrapper that adds --no-sandbox)
+          # macOS:   mac*/Fractal Lite.app/Contents/MacOS/Fractal Lite
+          # Windows: win-unpacked/Fractal Lite.exe
+          case "$(uname -s)" in
+            Linux)
+              ELECTRON=$(find dist-electron/linux-unpacked -maxdepth 1 -type f ! -name '*.bin' | head -1)
+              RUNNER="xvfb-run --auto-servernum"
+              ;;
+            Darwin)
+              ELECTRON=$(find dist-electron -maxdepth 5 -path '*/MacOS/Fractal Lite' | head -1)
+              RUNNER=""
+              ;;
+            *)
+              ELECTRON=$(find dist-electron/win-unpacked -maxdepth 1 -name '*.exe' | head -1)
+              RUNNER=""
+              ;;
+          esac
+          echo "Electron binary: $ELECTRON"
+
+          LOG=$(mktemp)
+          $RUNNER "$ELECTRON" >"$LOG" 2>&1 &
+          PID=$!
+
+          WAITED=0
+          while [ $WAITED -lt 90 ]; do
+            grep -q '\[TIMING\] page loaded' "$LOG" 2>/dev/null && break
+            sleep 1
+            WAITED=$((WAITED + 1))
+          done
+
+          echo "=== Startup timing ==="
+          grep '\[TIMING\]' "$LOG" || echo "No timing data captured (timeout or crash)"
+          echo "=== Electron log ==="
+          cat "$LOG"
+
+          kill $PID 2>/dev/null || true
+          rm -f "$LOG"
+
+      # On tag pushes: upload the distributable to a GitHub Release.
+      # All five jobs upload to the same release; the first one creates it.
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        if: github.ref_type == 'tag'
         with:
-          persist-credentials: false
-      - run: gh release edit "${GH_REF_NAME}" --draft=false
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REF_NAME: ${{ github.ref_name }}
+          generate_release_notes: true
+          # Upload only the installers — the auto-update metadata (latest*.yml,
+          # *.blockmap) is unused since the app has no electron-updater.
+          # actions/*, unlike `run:` steps, don't inherit defaults.working-directory,
+          # so these paths are spelled out relative to the repo root.
+          files: |
+            electron/dist-electron/*.AppImage
+            electron/dist-electron/*.dmg
+            electron/dist-electron/*.exe
+          fail_on_unmatched_files: false
+
+      # On manual runs (workflow_dispatch): expose the build as a downloadable artifact.
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: github.ref_type != 'tag'
+        with:
+          name: dist-${{ matrix.platform }}
+          path: electron/dist-electron/
+          retention-days: 7
