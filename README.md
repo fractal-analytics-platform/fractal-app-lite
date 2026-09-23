@@ -59,6 +59,41 @@ pixi run build-executable
 
 Generated executables are located in the `dist` folder.
 
+## Running a released executable
+
+Every `v2.x.y` tag triggers a GitHub Actions release build for Linux, Windows and
+macOS (Intel and Apple Silicon). Download the asset matching your OS from the
+[Releases page](../../releases) — assets are named
+`v2.x.y-fractal-<os>[.exe]`, e.g. `v2.x.y-fractal-ubuntu-22.04` or
+`v2.x.y-fractal-windows-2025.exe`.
+
+**Linux**
+
+```bash
+chmod +x v2.x.y-fractal-ubuntu-22.04
+./v2.x.y-fractal-ubuntu-22.04
+```
+
+**macOS**
+
+The binary is unsigned, so Gatekeeper blocks it on first run. Remove the
+quarantine attribute, then run it:
+
+```bash
+chmod +x v2.x.y-fractal-macos-26
+xattr -cr v2.x.y-fractal-macos-26
+./v2.x.y-fractal-macos-26
+```
+
+**Windows**
+
+Double-click `v2.x.y-fractal-windows-2025.exe`, or run it from a terminal. The
+binary is unsigned, so SmartScreen may warn on first launch — choose
+**More info > Run anyway**.
+
+To open a previously saved project, pass its directory as an argument, e.g.
+`./v2.x.y-fractal-ubuntu-22.04 --open demo.flp` (same `--open` flag as `pixi run app`).
+
 ## Development
 
 ### Tests
