@@ -3,6 +3,13 @@ productName: Fractal Lite
 artifactName: FractalLite-${version}-${os}-${arch}.${ext}
 copyright: Copyright © 2026 BioVisionCenter
 
+# No electron-updater is used, so there's nothing to publish. Without this,
+# electron-builder still tries to auto-detect a GitHub publish provider from
+# `.git/config` to generate update-info metadata (latest*.yml) — which fails
+# with "Cannot read properties of null (reading 'channel')" here because this
+# package.json lives in electron/, not at the repo root where .git is.
+publish: null
+
 directories:
   buildResources: build-resources
   output: dist-electron
