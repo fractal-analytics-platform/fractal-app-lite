@@ -19,7 +19,18 @@ a = Analysis(
 # (Mesa -> libLLVM) is loaded at runtime and may need a newer libstdc++ than the
 # one on the build runner; if ours shadows it, EGL/GLX fail and QtWebEngine aborts.
 # The host's copy is always at least as new, since we build on the oldest target.
-_HOST_LIBS = ("libstdc++.so", "libgcc_s.so")
+# Same for glib (the host's GIO modules need a glib at least as new as themselves)
+# and libgbm (tied to the host's Mesa drivers).
+_HOST_LIBS = (
+    "libstdc++.so",
+    "libgcc_s.so",
+    "libglib-2.0.so",
+    "libgio-2.0.so",
+    "libgobject-2.0.so",
+    "libgmodule-2.0.so",
+    "libgthread-2.0.so",
+    "libgbm.so",
+)
 a.binaries = [b for b in a.binaries if not b[0].startswith(_HOST_LIBS)]
 
 pyz = PYZ(a.pure)
