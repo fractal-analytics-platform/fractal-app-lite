@@ -2,12 +2,16 @@ import json
 import logging
 import os
 import re
+import shutil
+import ssl
 import subprocess
 import tarfile
 import tomllib
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
+
+import certifi
 
 from fractal_lite._tasks import (
     DirectoryTaskSource,
@@ -19,6 +23,10 @@ from fractal_lite._tasks import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Verify HTTPS against certifi's CA bundle rather than OpenSSL's compiled-in
+# default path, which does not exist inside the frozen (PyInstaller) app.
+_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 def _fractal_lite_dir() -> Path:
@@ -301,7 +309,7 @@ def _resolve_release_asset(
     req = urllib.request.Request(
         api_url, headers={"Accept": "application/vnd.github+json"}
     )
-    with urllib.request.urlopen(req) as resp:  # trusted GitHub API URL
+    with urllib.request.urlopen(req, context=_SSL_CONTEXT) as resp:  # GitHub API
         release = json.load(resp)
     resolved_tag = release["tag_name"]
     for asset in release.get("assets", []):
@@ -326,7 +334,12 @@ def collect_from_gitrelease(
     asset_url, asset_name, resolved_tag = _resolve_release_asset(owner, repo, tag)
     collection_dir.mkdir(parents=True, exist_ok=True)
     download_path = collection_dir / asset_name
-    urllib.request.urlretrieve(asset_url, download_path)  # trusted GitHub asset URL
+    # trusted GitHub asset URL
+    with (
+        urllib.request.urlopen(asset_url, context=_SSL_CONTEXT) as resp,
+        open(download_path, "wb") as f,
+    ):
+        shutil.copyfileobj(resp, f)
     source_info = GitReleaseTaskSource(
         repo_url=repo_url,
         tag=resolved_tag,
