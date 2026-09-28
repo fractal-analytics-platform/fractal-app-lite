@@ -5,7 +5,10 @@ a = Analysis(
     ['src/backend/shell.py'],
     pathex=['.pixi/envs/default/lib'],
     binaries=[],
-    datas=[('src/frontend/build', 'frontend/build')],
+    datas=[
+        ('src/frontend/build', 'frontend/build'),
+        ('src/fractal_lite/resources', 'fractal_lite/resources'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
