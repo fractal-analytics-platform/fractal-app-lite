@@ -198,3 +198,43 @@ app.on('before-quit', terminateAll)
 
 // Allow the renderer to quit the app cleanly
 ipcMain.on('app:quit', () => app.quit())
+
+// ---- Native file dialogs ----
+// The backend's /api/fs/* dialogs only work inside pywebview, so under Electron the
+// frontend calls these instead. Each resolves to an absolute path, or null if cancelled.
+
+// Convert pywebview-style filters ("CSV files (*.csv)") to Electron's format.
+function toFilters(fileTypes: string[] = []): Electron.FileFilter[] {
+  return fileTypes.map((ft) => {
+    const m = ft.match(/^(.*?)\s*\(([^)]*)\)\s*$/)
+    if (!m) return { name: ft, extensions: ['*'] }
+    const extensions = m[2]
+      .split(/[;\s]+/)
+      .filter(Boolean)
+      .map((p) => (p === '*.*' ? '*' : p.replace(/^\*\./, '')))
+    return { name: m[1], extensions }
+  })
+}
+
+ipcMain.handle('dialog:open-file', async (_evt, fileTypes: string[]) => {
+  const res = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: toFilters(fileTypes),
+  })
+  return res.canceled ? null : (res.filePaths[0] ?? null)
+})
+
+ipcMain.handle('dialog:open-directory', async () => {
+  const res = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory', 'createDirectory'],
+  })
+  return res.canceled ? null : (res.filePaths[0] ?? null)
+})
+
+ipcMain.handle('dialog:save-file', async (_evt, defaultName: string, fileTypes: string[]) => {
+  const res = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: defaultName || undefined,
+    filters: toFilters(fileTypes),
+  })
+  return res.canceled ? null : (res.filePath ?? null)
+})
