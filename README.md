@@ -9,35 +9,100 @@ This project contains two main components:
 - fractal-lite: A minimalistic implementation of fractal core concepts (datasets, collection, tasks, workflows, projects, history) without need of a database.
 - An Electron desktop app that spawns the FastAPI/uvicorn backend as a child process and points a native window at it.
 
-## Download and install
+## Get the app
 
-Pre-built installers are attached to each `v3.x.y` release on the [Releases page](../../releases). Assets are named `v3.x.y-FractalLite-<os>.<ext>`, e.g. `v3.0.0-FractalLite-ubuntu-22.04.AppImage`:
+You can either download a pre-built installer or build it yourself.
 
-| Platform | File |
-|---|---|
-| macOS (Apple Silicon) | `v3.x.y-FractalLite-macos-26.dmg` |
-| macOS (Intel) | `v3.x.y-FractalLite-macos-15-intel.dmg` or `v3.x.y-FractalLite-macos-26-intel.dmg` |
-| Windows | `v3.x.y-FractalLite-windows-2025.exe` |
-| Linux | `v3.x.y-FractalLite-ubuntu-22.04.AppImage` |
+### Option 1: download a release
 
-None of these are code-signed, so each OS blocks them on first launch:
+Pre-built installers for every `v3.x.y` release are available on the
+[Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v3&expanded=true).
+Download the asset matching your OS:
 
-**macOS**
+| OS | Asset |
+| --- | --- |
+| Linux (x86_64, Ubuntu 22.04 or newer) | `v3.x.y-FractalLite-ubuntu-22.04.AppImage` |
+| Windows (x86_64) | `v3.x.y-FractalLite-windows-2025.exe` |
+| macOS, Apple Silicon (M1 or newer) | `v3.x.y-FractalLite-macos-26.dmg` |
+| macOS, Intel, macOS 15 | `v3.x.y-FractalLite-macos-15-intel.dmg` |
+| macOS, Intel, macOS 26 or newer | `v3.x.y-FractalLite-macos-26-intel.dmg` |
 
-Go to **System Settings → Privacy & Security → scroll down → "Open Anyway"**.
+### Option 2: build it locally
 
-**Linux**
+The build produces an installer for the OS (and CPU architecture) you run it on.
+Cross-compiling is not supported.
 
-The AppImage must be marked executable before running:
+**Requirements**
+
+- [Node.js](https://nodejs.org/) 22+ and npm
+- [Python](https://www.python.org/) 3.12+, available as `python3`
+- git
+- bash. On Windows, use [Git Bash](https://git-scm.com/downloads/win) and make sure
+  `python3 --version` prints 3.12 or newer there.
+
+**Steps**
+
+All the Electron/npm tooling lives in the `electron/` subfolder. From the root of
+the cloned repository run:
 
 ```bash
-chmod +x v3.x.y-FractalLite-ubuntu-22.04.AppImage
-./v3.x.y-FractalLite-ubuntu-22.04.AppImage
+cd electron
+npm install
+npm run full-build
 ```
 
-**Windows**
+`npm run full-build` builds the SvelteKit frontend, packages the Python backend with
+PyInstaller, and packages everything with electron-builder. The first run takes a while.
 
-Run the installer (`.exe`). Windows Defender SmartScreen may warn about an unknown publisher — click "More info → Run anyway".
+The installer is written to `electron/dist-electron/`:
+
+| OS | Output |
+| --- | --- |
+| Linux | `FractalLite-<version>-linux-x86_64.AppImage` |
+| Windows | `FractalLite-<version>-win-x64.exe` |
+| macOS | `FractalLite-<version>-mac-<arch>.dmg` |
+
+## How to run the app
+
+None of the installers are code-signed, so each OS asks for confirmation the first
+time you launch the app.
+
+### Linux
+
+Make the AppImage executable, then launch it:
+
+```bash
+chmod +x <file>.AppImage
+./<file>.AppImage
+```
+
+If it fails with an error about FUSE (`dlopen(): error loading libfuse.so.2`),
+install FUSE 2:
+
+```bash
+sudo apt install libfuse2      # Ubuntu 22.04
+sudo apt install libfuse2t64   # Ubuntu 24.04 or newer
+```
+
+### macOS
+
+1. Open the `.dmg` file and drag **Fractal Lite** into the **Applications** folder.
+2. Launch **Fractal Lite** from Applications. macOS blocks it the first time.
+3. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+
+If macOS says the app "is damaged and can't be opened", remove the quarantine
+attribute and try again:
+
+```bash
+xattr -cr "/Applications/Fractal Lite.app"
+```
+
+### Windows
+
+1. Run the installer (`.exe`). Windows Defender SmartScreen may warn about an
+   unknown publisher: click **More info**, then **Run anyway**.
+2. The installer installs the app for the current user and starts it.
+3. Afterwards, launch **Fractal Lite** from the Start menu or the desktop shortcut.
 
 ## How it works
 
@@ -58,51 +123,25 @@ The port is chosen randomly at startup, so there are no conflicts with other ser
 
 See `electron/documentation.md` for the full build/packaging pipeline and `electron/CLAUDE.md` for an architecture overview.
 
-## Building from source
+## Development
 
-All the Electron/npm tooling lives in the `electron/` subfolder, alongside the Python/SvelteKit source at the repo root. The commands below are run from `electron/`.
-
-### Requirements
-
-- [Node.js](https://nodejs.org/) 22+
-- [Python](https://www.python.org/) 3.12+
-- [pixi](https://pixi.sh/latest/#installation) (only needed for backend-only development, see below)
-
-### Setup
-
-```bash
-cd electron
-npm install
-```
-
-### Build the Python backend and frontend
-
-This compiles the SvelteKit frontend and packages the Python backend into a self-contained binary using PyInstaller. It only needs to be re-run when the Python code or frontend changes.
-
-```bash
-npm run build-components
-```
-
-Partial rebuilds (the backend build bakes the frontend into the PyInstaller bundle, so after a frontend change you need both):
-
-```bash
-npm run build-frontend   # rebuild only the SvelteKit frontend (scripts/build-frontend.sh)
-npm run build-backend    # rebuild only the Python binary (scripts/build-backend.sh)
-```
+Unless noted otherwise, run these from the `electron/` folder, after `npm install`.
 
 ### Run in development mode
 
 ```bash
+npm run build-components   # build frontend + Python backend (needed at least once)
 npm run dev
 ```
 
-Compiles the TypeScript with hot-reload and launches Electron directly from the source tree. `npm run build-components` must have been run at least once first.
+`npm run dev` compiles the TypeScript with hot-reload and launches Electron directly
+from the source tree.
 
-### Build a distributable
+To rebuild only one part (the backend build bakes the frontend into the PyInstaller bundle, so after a frontend change you need both):
 
 ```bash
-npm run package          # build for the current platform → electron/dist-electron/
-npm run full-build       # build-components + package in one step
+npm run build-frontend   # rebuild only the SvelteKit frontend (scripts/build-frontend.sh)
+npm run build-backend    # rebuild only the Python binary (scripts/build-backend.sh)
 ```
 
 ### Other useful commands
@@ -120,6 +159,23 @@ The Python backend can still be run standalone (without Electron) via pixi, e.g.
 pixi run serve   # runs uvicorn directly, serving the built frontend if present
 ```
 
+### Tests
+
+Run these from the repo root (not `electron/`):
+
+```bash
+pixi run -e dev test           # full test suite
+pixi run -e dev test-fast      # skip slow e2e tests
+```
+
+### Linting
+
+From the repo root:
+
+```bash
+pixi run -e dev lint
+```
+
 ## Releasing a new version
 
 Push a `v3.x.y` tag:
@@ -130,23 +186,6 @@ git push --tags
 ```
 
 This triggers `.github/workflows/release.yml`, which builds installers for Linux, Windows and macOS (Intel and Apple Silicon) and uploads them to a GitHub Release. To trigger a build without creating a release (useful for testing), run the workflow manually from the **Actions** tab — the results are uploaded as workflow artifacts (kept for 7 days) instead.
-
-## Development
-
-Run these from the repo root (not `electron/`):
-
-### Tests
-
-```bash
-pixi run -e dev test           # full test suite
-pixi run -e dev test-fast      # skip slow e2e tests
-```
-
-### Linting
-
-```bash
-pixi run -e dev lint
-```
 
 ## Notes
 
