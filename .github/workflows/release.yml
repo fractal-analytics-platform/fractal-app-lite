@@ -90,8 +90,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: electron/package-lock.json
+          package-manager-cache: false
 
       # Python is needed by the vite.config.js patch (python3 heredoc in the build script).
       - name: Set up Python 3.12
