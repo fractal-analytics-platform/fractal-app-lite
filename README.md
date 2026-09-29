@@ -14,7 +14,7 @@ This project contains two main components:
 
 ## Setup
 
-Run these three steps once after cloning.
+Run these two steps once after cloning.
 
 **1. Vendor the fractal-web component library**
 
@@ -29,7 +29,9 @@ cd fractal-web-clone/components && npm install --omit=peer
 pixi run build-frontend
 ```
 
-## Running
+## How to run the app
+
+Make sure you have completed the [Setup](#setup) steps first (the app needs the built frontend).
 
 Launch the native desktop window:
 

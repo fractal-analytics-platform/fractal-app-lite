@@ -5,6 +5,7 @@ import re
 import subprocess
 import tarfile
 import tomllib
+import urllib.error
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -292,6 +293,7 @@ def _resolve_release_asset(
     first asset whose name ends in ``.tar.gz``.
 
     Raises:
+        ValueError: If the repository or the release for ``tag`` does not exist.
         RuntimeError: If the release has no ``.tar.gz`` asset.
     """
     if tag is None:
@@ -301,8 +303,22 @@ def _resolve_release_asset(
     req = urllib.request.Request(
         api_url, headers={"Accept": "application/vnd.github+json"}
     )
-    with urllib.request.urlopen(req) as resp:  # trusted GitHub API URL
-        release = json.load(resp)
+    try:
+        with urllib.request.urlopen(req) as resp:  # trusted GitHub API URL
+            release = json.load(resp)
+    except urllib.error.HTTPError as err:
+        if err.code != 404:
+            raise
+        if tag is None:
+            raise ValueError(
+                f"No releases found for {owner}/{repo} (or the repository does "
+                "not exist)."
+            ) from err
+        raise ValueError(
+            f"No GitHub release tagged {tag!r} in {owner}/{repo}. Check the "
+            f"available releases at https://github.com/{owner}/{repo}/releases, "
+            "or leave the tag blank to use the latest one."
+        ) from err
     resolved_tag = release["tag_name"]
     for asset in release.get("assets", []):
         if asset["name"].endswith(".tar.gz"):
