@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 import socket
+import sys
 import threading
 import time
 from pathlib import Path
@@ -28,6 +29,23 @@ logger = logging.getLogger(__name__)
 _HOST = "127.0.0.1"
 _TITLE = "Fractal Lite"
 _WINDOW_SIZE = (1280, 900)
+
+
+def _configure_qtwebengine() -> None:
+    """Work around blank windows with QtWebEngine on some Linux GPU stacks.
+
+    On e.g. Intel Arrow Lake + Mesa, Chromium's GPU compositor hands Qt textures it
+    cannot import ("Backend texture is not a Vulkan texture" / "Compositor returned
+    null texture") and the window stays white. Compositing on the CPU avoids it while
+    keeping GPU rasterization and WebGL. Flags the user already set are preserved.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+    flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+    if "--disable-gpu-compositing" not in flags:
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
+            f"{flags} --disable-gpu-compositing".strip()
+        )
 
 
 def _free_port() -> int:
@@ -119,11 +137,8 @@ def main() -> None:
     # Expose the window to the FS dialog bridge so the frontend can open native
     # file/dir dialogs through the backend.
     fs.set_window(window)
-    # QtWebEngine's GPU compositing can fail on some Linux/Wayland setups ("Compositor
-    # returned null texture"), leaving a blank white window; render in software instead.
-    # Set QTWEBENGINE_CHROMIUM_FLAGS yourself to override.
-    os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu")
-    webview.start(gui="qt")  # blocks until the window is closed; uvicorn thread is a daemon
+    _configure_qtwebengine()
+    webview.start()  # blocks until the window is closed; uvicorn thread is a daemon
 
 
 if __name__ == "__main__":
