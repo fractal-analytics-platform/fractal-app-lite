@@ -104,5 +104,6 @@
 </main>
 
 <Toasts />
-<PathModal />
 <NewProjectModal bind:open={showNewProject} onCreated={onProjectCreated} />
+<!-- Last, so the typed-path fallback stacks above modals that open it. -->
+<PathModal />

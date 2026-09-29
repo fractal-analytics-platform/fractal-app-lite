@@ -1,0 +1,49 @@
+appId: fractal-analytics-platform.github.io
+productName: Fractal Lite
+artifactName: FractalLite-${version}-${os}-${arch}.${ext}
+copyright: Copyright © 2026 BioVisionCenter
+
+# No electron-updater is used, so there's nothing to publish. Without this,
+# electron-builder still tries to auto-detect a GitHub publish provider from
+# `.git/config` to generate update-info metadata (latest*.yml) — which fails
+# with "Cannot read properties of null (reading 'channel')" here because this
+# package.json lives in electron/, not at the repo root where .git is.
+publish: null
+
+directories:
+  buildResources: build-resources
+  output: dist-electron
+
+afterPack: scripts/after-pack.js
+
+files:
+  - out/**/*
+  - package.json
+
+# PyInstaller onedir output (backend + bundled static frontend) is populated
+# by scripts/build-components.sh before packaging.
+extraResources:
+  - from: resources/fractal-app-lite
+    to: fractal-app-lite
+  - from: build-resources/fractal_logo.png
+    to: fractal_logo.png
+
+mac:
+  category: public.app-category.developer-tools
+  # PyInstaller binaries require an entitlement for running unsigned code on macOS 14+
+  # hardenedRuntime: true
+  # entitlements: build-resources/entitlements.mac.plist
+  target:
+    - target: dmg
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
