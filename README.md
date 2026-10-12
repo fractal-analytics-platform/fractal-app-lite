@@ -86,9 +86,35 @@ sudo apt install libfuse2t64   # Ubuntu 24.04 or newer
 
 ### macOS
 
-1. Open the `.dmg` file and drag **Fractal Lite** into the **Applications** folder.
-2. Launch **Fractal Lite** from Applications. macOS blocks it the first time.
-3. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+The app isn't signed with an Apple Developer certificate, so Gatekeeper blocks
+it on the first launch. You only need to approve it once.
+
+1. **Install.** Double-click the downloaded `.dmg` file. In the window that opens,
+   drag the **Fractal Lite** icon onto the **Applications** folder.
+
+   <img src="docs/images/macos-step1.png" alt="Drag Fractal Lite onto the Applications folder" width="450">
+
+2. **First launch.** Open **Fractal Lite** from Applications. macOS refuses to
+   open it with a *"Fractal Lite" Not Opened* dialog, saying Apple could not
+   verify that it is free of malware. Click **Done**. Do **not** click
+   **Move to Trash**.
+
+   <img src="docs/images/macos-step2.png" alt="&quot;Fractal Lite&quot; Not Opened dialog" width="280">
+
+3. **Allow the app.** Open **System Settings → Privacy & Security** and scroll
+   down to the **Security** section. Next to the message *"Fractal Lite" was
+   blocked to protect your Mac*, click **Open Anyway**. macOS may ask for your
+   password or Touch ID.
+
+   <img src="docs/images/macos-step3.png" alt="Open Anyway button in Privacy &amp; Security settings" width="650">
+
+4. **Confirm.** A last dialog asks *Open "Fractal Lite"?*. Click **Open Anyway**.
+   The app starts, and from then on it opens normally.
+
+   <img src="docs/images/macos-step4.png" alt="Confirmation dialog with the Open Anyway button" width="280">
+
+The screenshots come from a Mac set to Italian. The button labels in English are
+the ones in bold above.
 
 If macOS says the app "is damaged and can't be opened", remove the quarantine
 attribute and try again:
