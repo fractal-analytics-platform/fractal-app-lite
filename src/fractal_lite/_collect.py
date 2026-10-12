@@ -2,12 +2,16 @@ import json
 import logging
 import os
 import re
+import shutil
+import ssl
 import subprocess
 import tarfile
 import tomllib
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
+
+import certifi
 
 from fractal_lite._tasks import (
     DirectoryTaskSource,
@@ -282,6 +286,15 @@ def _parse_github_repo(repo_url: str) -> tuple[str, str]:
     return owner, repo.removesuffix(".git")
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """SSL context trusting certifi's CA bundle.
+
+    The PyInstaller-frozen backend can't locate the system CA store (notably on
+    macOS), so HTTPS requests would fail with ``CERTIFICATE_VERIFY_FAILED``.
+    """
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def _resolve_release_asset(
     owner: str, repo: str, tag: str | None
 ) -> tuple[str, str, str]:
@@ -301,7 +314,8 @@ def _resolve_release_asset(
     req = urllib.request.Request(
         api_url, headers={"Accept": "application/vnd.github+json"}
     )
-    with urllib.request.urlopen(req) as resp:  # trusted GitHub API URL
+    # trusted GitHub API URL
+    with urllib.request.urlopen(req, context=_ssl_context()) as resp:
         release = json.load(resp)
     resolved_tag = release["tag_name"]
     for asset in release.get("assets", []):
@@ -326,7 +340,12 @@ def collect_from_gitrelease(
     asset_url, asset_name, resolved_tag = _resolve_release_asset(owner, repo, tag)
     collection_dir.mkdir(parents=True, exist_ok=True)
     download_path = collection_dir / asset_name
-    urllib.request.urlretrieve(asset_url, download_path)  # trusted GitHub asset URL
+    # trusted GitHub asset URL
+    with (
+        urllib.request.urlopen(asset_url, context=_ssl_context()) as resp,
+        open(download_path, "wb") as f,
+    ):
+        shutil.copyfileobj(resp, f)
     source_info = GitReleaseTaskSource(
         repo_url=repo_url,
         tag=resolved_tag,
