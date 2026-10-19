@@ -39,9 +39,20 @@ function findFreePort(): Promise<number> {
   })
 }
 
-async function waitForPort(port: number, timeoutMs = 60_000): Promise<void> {
+// The first launch after install can be very slow on Windows (Defender scans
+// every freshly extracted backend file; ~130 s observed), so the timeout is
+// generous and we fail fast if the backend process exits instead.
+async function waitForPort(
+  port: number,
+  proc: ChildProcess,
+  timeoutMs = 300_000,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
+    if (proc.exitCode !== null || proc.signalCode !== null)
+      throw new Error(
+        `Backend exited before becoming ready (code ${proc.exitCode ?? proc.signalCode})`,
+      )
     const ready = await new Promise<boolean>((resolve) => {
       const socket = net.connect({ port, host: '127.0.0.1' })
       socket.once('connect', () => { socket.destroy(); resolve(true) })
@@ -74,7 +85,7 @@ async function startApp(port: number): Promise<void> {
       console.error(`fractal-app-lite exited with code ${code}`)
   })
 
-  await waitForPort(port)
+  await waitForPort(port, serverProcess)
   t('backend ready')
   console.log(`fractal-app-lite ready on :${port}`)
 }
@@ -145,6 +156,7 @@ function createLoadingHTML(): string {
   <img class="logo" src="${getLogoDataURI()}" alt="Fractal">
   <h1>Fractal Lite</h1>
   <p>Starting services, please wait…</p>
+  <p>The first launch after installing may take a few minutes.</p>
 </div>
 </body>
 </html>`
