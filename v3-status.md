@@ -50,27 +50,11 @@ fractal-app-lite ready on :51531
 ...
 ```
 
-### End-to-end test
-
-1. **Create a project.** Click **New project** and fill in the modal.
-2. **Register the task packages.** Go to **Task Management** and register these two packages with
-   **Register git release**:
-
-   - `fractal-tasks-core`: use the latest version.
-   - `fractal-uzh-converters`: use a version newer than `v0.7.1`. Currently the only working one is the
-     pre-release `v0.8.0b1`.
-3. **Build the workflow.** Go to **Workflow** and add these three tasks, in this order:
-
-   | Order | Task                                    | Arguments                                                                                                                                                       |
-   | :---: | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   |   1   | Convert Evident ScanR Plate to OME-Zarr | `Acquisitions.ScanRAcquisitionModel.Path`: a folder with valid ScanR images, e.g. `fractal-app-lite/tests/data/hcs_1w1p1c1z1t/dataOverwrite`: `Overwrite` |
-   |   2   | Project Image (HCS Plate)               | `Overwrite`: `true`                                                                                                                                         |
-   |   3   | Threshold Segmentation                  | `Mode`: `IndexIdentifier`: `0Overwrite`: `true`                                                                                                         |
-4. **Run.** Click **Run** and wait for the workflow to finish.
+**End-to-end test:** see [End-to-end test](#end-to-end-test).
 
 ---
 
-# macOS 26 — Apple Silicon (`macos-26`)
+## macOS 26 — Apple Silicon (`macos-26`)
 
 TODO
 
@@ -84,4 +68,45 @@ TODO
 
 ## Windows (`windows-2025`)
 
+**Test machine:** TODO
+
+**Version tested:** `v3.0.7`
+
+### Download
+
+1. Open the [Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v3&expanded=true).
+2. In the latest `v3.x.y` release, download `v3.x.y-FractalLite-windows-2025.exe`.
+
+If Microsoft Edge (SmartScreen) blocks the download with *"v3.x.y-FractalLite-windows-2025.exe isn't commonly
+downloaded. Make sure you trust v3.x.y-FractalLite-windows-2025.exe before you open it."*, open the downloads
+panel (`Ctrl+J`), click **…** next to the file, then **Keep**. In the dialog that opens, click
+**Show more** → **Keep anyway**.
+
+### Install and launch
+
 TODO
+
+**End-to-end test:** see [End-to-end test](#end-to-end-test).
+
+---
+
+## End-to-end test
+
+The same test applies to every platform; platform-specific differences are noted inline.
+
+1. **Create a project.** Click **New project** and fill in the modal.
+2. **Register the task packages.** Go to **Task Management** and register these two packages with
+   **Register git release**:
+
+   - `fractal-tasks-core`: use the latest version.
+   - `fractal-uzh-converters`: use the latest version.
+     - **macOS Intel:** use a version newer than `v0.7.1`. Currently the only working one is the
+       pre-release `v0.8.0b1`.
+3. **Build the workflow.** Go to **Workflow** and add these three tasks, in this order:
+
+   | Order | Task                                    | Arguments                                                                                                                                                        |
+   | :---: | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   |   1   | Convert Evident ScanR Plate to OME-Zarr | `Acquisitions.ScanRAcquisitionModel.Path`: a folder with valid ScanR images, e.g. `fractal-app-lite/tests/data/hcs_1w1p1c1z1t/data`<br>`Overwrite`: `Overwrite` |
+   |   2   | Project Image (HCS Plate)               | `Overwrite`: `true`                                                                                                                                              |
+   |   3   | Threshold Segmentation                  | `Mode`: `Index`<br>`Identifier`: `0`<br>`Overwrite`: `true`                                                                                                      |
+4. **Run.** Click **Run** and wait for the workflow to finish.
