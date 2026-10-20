@@ -1,6 +1,6 @@
 # Fractal Lite v3 — Status Report
 
-> Branch: `v3` · Latest release: [`v3.0.7`](https://github.com/fractal-analytics-platform/fractal-app-lite/releases/tag/v3.0.7)
+> Branch: `v3` · Latest release: [`v3.0.8`](https://github.com/fractal-analytics-platform/fractal-app-lite/releases/tag/v3.0.8)
 
 ## macOS 26 — Intel (`macos-26-intel`)
 
@@ -50,21 +50,53 @@ fractal-app-lite ready on :51531
 ...
 ```
 
-**End-to-end test:** see [End-to-end test](#end-to-end-test).
-
 ---
 
 ## macOS 26 — Apple Silicon (`macos-26`)
 
 TODO
 
+---
+
 ## macOS 15 — Intel (`macos-15-intel`)
 
 TODO
 
+---
+
 ## Linux (`ubuntu-22.04`)
 
-TODO
+**Test machine:** Lenovo 83JK, Intel Core Ultra 5 225H (14 cores / 14 threads), 32 GB RAM, Ubuntu 24.04.5 LTS.
+
+**Version tested:** `v3.0.8`
+
+### Download
+
+1. Open the [Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v3&expanded=true).
+2. In the latest `v3.x.y` release, download `v3.x.y-FractalLite-ubuntu-22.04.AppImage` (~320 MB).
+
+### Install and launch
+
+There is nothing to install: the `.AppImage` is a self-contained executable.
+
+1. **Make it executable.** From the folder where you downloaded the file:
+
+   ```bash
+   chmod +x v3.x.y-FractalLite-ubuntu-22.04.AppImage
+   ```
+
+2. **Launch.** Run it from the same folder:
+
+   ```bash
+   ./v3.x.y-FractalLite-ubuntu-22.04.AppImage
+   ```
+
+   Launching from a terminal also shows the backend logs.
+
+If the AppImage fails with `dlopen(): error loading libfuse.so.2`, install FUSE 2
+(`sudo apt install libfuse2t64` on Ubuntu 24.04, `sudo apt install libfuse2` on Ubuntu 22.04).
+
+---
 
 ## Windows (`windows-2025`)
 
@@ -87,10 +119,7 @@ panel (`Ctrl+J`), click **…** next to the file, then **Keep**. In the dialog t
 1. **Install.** Double-click the `.exe`. The installer runs without asking anything and opens
    **Fractal Lite** when it finishes.
 2. **Launch.** Afterwards, open **Fractal Lite** from the Start menu.
-
-The first run is slower than the following ones.
-
-**End-to-end test:** see [End-to-end test](#end-to-end-test).
+    > The first run is slower than the following ones.
 
 ---
 
