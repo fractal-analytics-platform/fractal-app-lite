@@ -53,7 +53,36 @@ There is nothing to install: the file is a self-contained executable.
 
 ## Windows (`windows-2025`)
 
-TODO
+**Test machine:** Lenovo 83JK, Intel Core Ultra 5 225H (14 cores / 14 threads), 32 GB RAM, Windows 11 Home 25H2 (build 26200).
+
+**Version tested:** `v2.0.4`
+
+### Download
+
+1. Open the [Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v2&expanded=true).
+2. In the latest `v2.x.y` release, download `v2.x.y-fractal-windows-2025.exe` (~175 MB).
+
+If Microsoft Edge (SmartScreen) blocks the download with *"v2.x.y-fractal-windows-2025.exe isn't commonly
+downloaded. Make sure you trust v2.x.y-fractal-windows-2025.exe before you open it."*, open the downloads
+panel (`Ctrl+J`), click **…** next to the file, then **Keep**. In the dialog that opens, click
+**Show more** → **Keep anyway**.
+
+### Install and launch
+
+> [!WARNING]
+> **Blocked by Smart App Control.** On the test machine Smart App Control is **On**. Double-clicking the `.exe`
+> shows *"Smart App Control blocked an app that may be unsafe"*, and there is no option to run it anyway. The
+> executable is not code-signed, and Smart App Control blocks unsigned apps with no reputation.
+>
+> The workaround is to turn Smart App Control off (**Windows Security → App & browser control →
+> Smart App Control settings → Off**). This is system-wide and, depending on the Windows version, may not be
+> reversible without reinstalling Windows. The real fix is to sign the executable.
+
+There is nothing to install: the file is a self-contained executable.
+
+1. **Turn off Smart App Control** (see the warning above).
+2. **Launch.** Double-click `v2.x.y-fractal-windows-2025.exe`. A terminal window opens and shows the backend
+   logs; after a few seconds the **Fractal Lite** window opens.
 
 ---
 
@@ -75,3 +104,38 @@ The same test applies to every platform; platform-specific differences are noted
    |   2   | Project Image (HCS Plate)               | `Overwrite`: `true`                                                                                                                                              |
    |   3   | Threshold Segmentation                  | `Mode`: `Index`<br>`Identifier`: `0`<br>`Overwrite`: `true`                                                                                                      |
 4. **Run.** Click **Run** and wait for the workflow to finish.
+   - **Windows:** the run fails at the first task (`Convert Evident ScanR Plate to OME-Zarr`,
+     `fractal-uzh-converters@v0.8.0b1`). The task's Python environment cannot load the compiled `lz4`
+     extension of `numcodecs`: Windows blocks the DLL with *"An Application Control policy has blocked this
+     file"* (on the Italian test machine: *"Un criterio di controllo dell'applicazione ha bloccato il file"*).
+     The run page shows this error (repeated `site-packages` frames shortened):
+
+     ```text
+     [step 0] Running task 'Convert Evident ScanR Plate to OME-Zarr [fractal-uzh-converters@v0.8.0b1]'
+     Traceback (most recent call last):
+       File "C:\Users\yuric\fractal_lite\collected_tasks\fractal_uzh_converters-0.8.0b1\src\fractal_uzh_converters\scanr\convert_scanr_init_task.py", line 5, in <module>
+         from ome_zarr_converters_tools import (
+         ...<3 lines>...
+         )
+       File "...\site-packages\ome_zarr_converters_tools\__init__.py", line 5, in <module>
+         from ome_zarr_converters_tools.core import (
+       File "...\site-packages\ome_zarr_converters_tools\core\__init__.py", line 3, in <module>
+         from ome_zarr_converters_tools.core._dummy_tiles import build_dummy_tile
+       File "...\site-packages\ome_zarr_converters_tools\core\_dummy_tiles.py", line 8, in <module>
+         from ome_zarr_converters_tools.core._tile import Tile
+       File "...\site-packages\ome_zarr_converters_tools\core\_tile.py", line 5, in <module>
+         from ngio import Roi, RoiSlice
+       ...  (ngio -> ngio.utils._store)
+       File "...\site-packages\ngio\utils\_store.py", line 21, in <module>
+         from zarr.abc.store import ByteRequest, Store
+       ...  (zarr -> zarr.codecs.blosc)
+       File "...\site-packages\zarr\codecs\blosc.py", line 8, in <module>
+         import numcodecs
+       File "...\site-packages\numcodecs\__init__.py", line 63, in <module>
+         from numcodecs import lz4 as lz4
+     ImportError: DLL load failed while importing lz4: Un criterio di controllo dell'applicazione ha bloccato il file.
+     ```
+
+     `...\site-packages` is
+     `C:\Users\yuric\fractal_lite\collected_tasks\fractal_uzh_converters-0.8.0b1\.pixi\envs\default\Lib\site-packages`.
+     This happens with Smart App Control turned off.
