@@ -13,7 +13,9 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PyQt6.Qt3D', 'PyQt6.QtMultimedia'],
+    # 'icu': on Intel macOS the conda icu package creates lib/icu/, which pathex turns into an
+    # empty 'icu' namespace package; natsort then finds it and crashes looking for icu.Locale.
+    excludes=['PyQt6.Qt3D', 'PyQt6.QtMultimedia', 'icu'],
     noarchive=False,
     optimize=0,
 )
