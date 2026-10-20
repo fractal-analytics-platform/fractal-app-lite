@@ -1,6 +1,5 @@
 # Fractal Lite v2 — Status Report
 
-> Branch: `v2` · Latest release: [`v2.0.4`](https://github.com/fractal-analytics-platform/fractal-app-lite/releases/tag/v2.0.4)
 
 ## macOS 26 — Intel (`macos-26-intel`)
 
