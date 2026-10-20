@@ -4,7 +4,44 @@
 
 ## macOS 26 — Intel (`macos-26-intel`)
 
-TODO
+**Test machine:** MacBook Pro 16" 2019 (MacBookPro16,1), Intel Core i9-9980HK (8 cores / 16 threads), 64 GB RAM,
+macOS 26.6.2 (build 25G83).
+
+**Version tested:** `v2.0.5`
+
+> [!NOTE]
+> `v2.0.4` crashed at startup with `AttributeError: module 'icu' has no attribute 'Locale'` (raised by `natsort`).
+> On Intel macOS the conda `icu` package creates `.pixi/envs/default/lib/icu/`, which PyInstaller bundled as an
+> empty `icu` namespace package because `lib` is in `pathex`. `v2.0.5` excludes `icu` in `fractal.spec`. The
+> same crash affected `v2.0.4` on `macos-15-intel`; the CI "Test artifact" step did not catch it because it has
+> `continue-on-error: true`.
+
+### Download
+
+1. Open the [Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v2&expanded=true).
+2. In the latest `v2.x.y` release, download `v2.x.y-fractal-macos-26-intel` (~200 MB).
+
+### Install and launch
+
+There is nothing to install: the file is a self-contained executable.
+
+1. **Make it executable.** From the folder where you downloaded the file:
+
+   ```bash
+   chmod +x v2.x.y-fractal-macos-26-intel
+   ```
+
+2. **Launch.** Run it from the same folder:
+
+   ```bash
+   ./v2.x.y-fractal-macos-26-intel
+   ```
+
+   The first time, Gatekeeper blocks it because the executable is not signed or notarized.
+
+3. **Allow it.** Open **System Settings → Privacy & Security**, scroll down to the message about the blocked
+   executable, and click **Open Anyway**. Then run the command from step 2 again and confirm. The terminal
+   shows the backend logs, and the **Fractal Lite** window opens.
 
 ---
 
