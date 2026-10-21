@@ -13,7 +13,6 @@ jobs:
   build:
     name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
-    needs: create-release-draft
     # All the Electron/npm tooling (package.json, scripts/, etc.) lives in
     # electron/, alongside the Python/SvelteKit source at the repo root.
     defaults:
