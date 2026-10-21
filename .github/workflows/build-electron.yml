@@ -128,10 +128,10 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign --display --verbose=2 "$APP"
 
-      # Expose the build as a downloadable artifact.
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dist-${{ matrix.platform }}
-          path: electron/dist-electron/
-          retention-days: 2
+      # # Expose the build as a downloadable artifact.
+      # - name: Upload workflow artifact
+      #   uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      #   with:
+      #     name: dist-${{ matrix.platform }}
+      #     path: electron/dist-electron/
+      #     retention-days: 2
