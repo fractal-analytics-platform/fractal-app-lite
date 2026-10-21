@@ -64,6 +64,7 @@ The installer is written to `electron/dist-electron/`:
 
 ## How to run the app
 
+<!-- FIXME: update once the macOS app is signed and notarized with an Apple Developer ID. -->
 None of the installers are code-signed, so each OS asks for confirmation the first
 time you launch the app.
 
@@ -85,6 +86,9 @@ sudo apt install libfuse2t64   # Ubuntu 24.04 or newer
 ```
 
 ### macOS
+
+<!-- FIXME: remove the Gatekeeper steps and the troubleshooting note below once
+     the app is signed and notarized with an Apple Developer ID. -->
 
 The app isn't signed with an Apple Developer certificate, so Gatekeeper blocks
 it on the first launch. You only need to approve it once.
@@ -116,10 +120,12 @@ it on the first launch. You only need to approve it once.
 The screenshots come from a Mac set to Italian. The button labels in English are
 the ones in bold above.
 
-If macOS says the app "is damaged and can't be opened", remove the quarantine
-attribute and try again:
+If macOS says the app "is damaged and can't be opened", or that it contains
+malware and moves it to the Trash, re-download it, install it again, then
+re-sign it locally and remove the quarantine attribute:
 
 ```bash
+codesign --force --deep --sign - "/Applications/Fractal Lite.app"
 xattr -cr "/Applications/Fractal Lite.app"
 ```
 
