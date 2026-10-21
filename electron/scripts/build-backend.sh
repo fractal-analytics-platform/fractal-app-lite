@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Python backend of fractal-app-lite — packaged by PyInstaller into
+# Builds the Python backend of fractal-app-lite - packaged by PyInstaller into
 # a self-contained directory (fractal-app-lite + all its Python dependencies)
 # so it can run on any machine without Python installed.
 #
@@ -23,19 +23,19 @@ ELECTRON_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_ROOT="$(cd "$ELECTRON_ROOT/.." && pwd)"
 RESOURCES_DIR="$ELECTRON_ROOT/resources"
 
-# ---- Backend → PyInstaller onedir binary ----
+# ---- Backend -> PyInstaller onedir binary ----
 #
 # PyInstaller analyses the Python source, traces all imports, and assembles
 # a self-contained directory (--onedir) containing:
 #   - The fractal-app-lite executable
 #   - A full Python runtime
-#   - All imported packages (uvicorn, fastapi, pydantic, ngio, polars, …)
+#   - All imported packages (uvicorn, fastapi, pydantic, ngio, polars, ..)
 #   - The compiled SvelteKit static files (bundled in via --add-data)
 #
 # The result can run on any compatible OS without Python installed.
 # We use --onedir (a directory) rather than --onefile (a single compressed
 # binary) because --onefile must unpack itself to a temp directory on every
-# launch, which adds noticeable startup delay. --onedir unpacks nothing —
+# launch, which adds noticeable startup delay. --onedir unpacks nothing -
 # the files are already on disk.
 echo "==> Building fractal-app-lite with PyInstaller..."
 
@@ -61,26 +61,15 @@ trap 'rm -rf "$BUILD_DIR"; rm -f "$PROJECT_ROOT"/*.spec' EXIT
 #
 # The original fractal-app-lite was designed to be launched as a standalone
 # desktop app using pywebview (a native window). Its entry point (shell.py)
-# opens a pywebview window, which we don't want — Electron's BrowserWindow
+# opens a pywebview window, which we don't want - Electron's BrowserWindow
 # is our window.
 #
 # We write a replacement entry point that simply starts the uvicorn HTTP
 # server on the port passed by Electron, with no GUI. The host is always
-# loopback — the server must not be reachable from the network. This file
+# loopback - the server must not be reachable from the network. This file
 # lives outside the repo so it doesn't dirty the working tree.
-cat > "$BUILD_DIR/_electron_entry.py" << 'PYEOF'
-import argparse
+cp scripts/_electron_entry.py "$BUILD_DIR/_electron_entry.py"
 
-import uvicorn
-
-from backend.main import app
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--port', type=int, default=8765)
-args, _ = parser.parse_known_args()
-
-uvicorn.run(app, host='127.0.0.1', port=args.port, log_level='info')
-PYEOF
 
 # ---- --add-data argument (cross-platform) ----
 #
@@ -92,7 +81,7 @@ PYEOF
 # On Windows under Git Bash / MSYS2, there is an extra complication: MSYS2
 # automatically converts POSIX-style paths in arguments passed to Windows
 # executables. The colon separator in "source:dest" collides with drive-letter
-# syntax (C:\...), so MSYS2 mangles it — "/d/a/.../build" becomes
+# syntax (C:\...), so MSYS2 mangles it - "/d/a/.../build" becomes
 # "\d\a\...\build" (wrong drive letter) instead of "D:\a\...\build". To avoid
 # this: use cygpath to convert the source path to a native Windows path, and
 # use ";" as the separator so MSYS2 does not touch the argument at all.
@@ -111,14 +100,15 @@ cd "$PROJECT_ROOT"
 # Create an isolated virtual environment in the temp dir so we don't pollute
 # the system Python. Then install the project and PyInstaller into it.
 # `pip install .` reads pyproject.toml and installs fractal-app-lite plus
-# every package it depends on (uvicorn, fastapi, ngio, polars, …).
+# every package it depends on (uvicorn, fastapi, ngio, polars, ...).
 python3 -m venv "$BUILD_DIR/venv"
 if [[ -d "$BUILD_DIR/venv/Scripts" ]]; then
   VENV_PYTHON="$BUILD_DIR/venv/Scripts/python"  # Windows (Git Bash)
 else
   VENV_PYTHON="$BUILD_DIR/venv/bin/python"       # Linux / macOS
 fi
-"$VENV_PYTHON" -m pip install --quiet . pyinstaller websockets
+"$VENV_PYTHON" -m pip install pip --upgrade
+"$VENV_PYTHON" -m pip install --quiet . pyinstaller==6.22.3 websockets==17.3
 
 # On macOS, tell PyInstaller which CPU architecture to target. Without this,
 # if the system Python is a "universal2" binary (supports both arm64 and
@@ -132,7 +122,7 @@ fi
 # --collect-all forces PyInstaller to include the entire package directory,
 # not just the files it detects through static import analysis. Some packages
 # (uvicorn, fastapi) load plugins and middleware dynamically at runtime using
-# importlib or entry_points — those dynamic imports are invisible to static
+# importlib or entry_points - those dynamic imports are invisible to static
 # analysis and would be silently missing from the bundle without --collect-all.
 #
 # numcodecs and zarr call importlib.metadata.version() on themselves at import
@@ -177,5 +167,5 @@ mkdir -p "$RESOURCES_DIR"
 # old and new files if the directory structure changes between builds.
 rm -rf "$RESOURCES_DIR/fractal-app-lite"
 cp -r "$BUILD_DIR/dist/fractal-app-lite" "$RESOURCES_DIR/fractal-app-lite"
-echo "    → resources/fractal-app-lite/"
+echo "    -> resources/fractal-app-lite/"
 # The trap fires on exit, deleting BUILD_DIR and any stray .spec files.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the SvelteKit frontend of fractal-app-lite — compiled to plain
+# Builds the SvelteKit frontend of fractal-app-lite - compiled to plain
 # HTML/JS/CSS files that FastAPI serves statically at http://127.0.0.1:<port>/.
 #
 # Source: src/frontend/
@@ -12,15 +12,17 @@
 #   bash scripts/build-frontend.sh
 set -euo pipefail
 
-# Absolute path to the repo root — two levels up from this script
-# (electron/scripts/../..) — so the script works regardless of which
+FRACTAL_WEB_REF="v1.29.10"
+
+# Absolute path to the repo root - two levels up from this script
+# (electron/scripts/../..) - so the script works regardless of which
 # directory you call it from. The Python/SvelteKit source lives there, one
 # level above the electron/ subfolder this script is part of.
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # vite.config.js holds the pinned version tag of fractal-web-clone (see below).
 VITE_CONFIG="$PROJECT_ROOT/src/frontend/vite.config.js"
 
-# ---- fractal-web-clone + Frontend → SvelteKit adapter-static build ----
+# ---- fractal-web-clone + Frontend -> SvelteKit adapter-static build ----
 #
 # The SvelteKit frontend imports a component library called fractal-components.
 # That library lives in a separate repo (fractal-web on GitHub). Rather than
@@ -33,25 +35,23 @@ VITE_CONFIG="$PROJECT_ROOT/src/frontend/vite.config.js"
 # to update the component library, change the tag there and delete
 # fractal-web-clone/ so this script re-clones it at the new tag.
 
-# Extract the version tag from vite.config.js with a regex (e.g. "v1.27.11").
-FRACTAL_WEB_REF=$(grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" "$VITE_CONFIG" | head -1)
 FRACTAL_WEB_CLONE="$PROJECT_ROOT/fractal-web-clone"
-if [[ ! -d "$FRACTAL_WEB_CLONE" ]]; then
-  echo "==> Cloning fractal-web @ $FRACTAL_WEB_REF (fractal-web-clone)..."
-  # --depth 1 fetches only the single commit at that tag, not the full history.
-  # This is much faster and uses far less disk space.
-  git clone --depth 1 --branch "$FRACTAL_WEB_REF" \
-    https://github.com/fractal-analytics-platform/fractal-web.git \
-    "$FRACTAL_WEB_CLONE"
-else
-  echo "==> fractal-web-clone already present, skipping clone."
+if [[ -d "$FRACTAL_WEB_CLONE" ]]; then
+  echo "==> fractal-web-clone already present, remove it."
+  rm -rf "$FRACTAL_WEB_CLONE"
 fi
+echo "==> Cloning fractal-web @ $FRACTAL_WEB_REF (fractal-web-clone)..."
+# --depth 1 fetches only the single commit at that tag, not the full history.
+# This is much faster and uses far less disk space.
+git clone --depth 1 --branch "$FRACTAL_WEB_REF" \
+  https://github.com/fractal-analytics-platform/fractal-web.git \
+  "$FRACTAL_WEB_CLONE"
 
 echo "==> Building fractal-lite frontend..."
 
 # ---- Temporary vite.config.js patch ----
 #
-# Problem: fractal-web-clone is a bare git clone — it has no node_modules of
+# Problem: fractal-web-clone is a bare git clone - it has no node_modules of
 # its own. Vite 8 switched its bundler to rolldown, which changed how it
 # resolves packages for code reached through an alias. When rolldown processes
 # a file inside fractal-web-clone (e.g. a .svelte component that imports
@@ -69,7 +69,7 @@ echo "==> Building fractal-lite frontend..."
 # just to work around a Vite version mismatch.
 #
 # The approach:
-#   1. Read the committed (clean) version of vite.config.js from git — NOT
+#   1. Read the committed (clean) version of vite.config.js from git - NOT
 #      from the working tree. If a previous run crashed before restoring the
 #      file, the working-tree copy would already be patched; applying the patch
 #      again would produce garbage. Reading from git always gives the baseline.
@@ -84,31 +84,11 @@ restore_vite_config() {
 trap restore_vite_config EXIT
 
 export VITE_CONFIG PROJECT_ROOT
-python3 - << 'PYEOF'
-import sys, os, subprocess
-
-path = os.environ['VITE_CONFIG']
-repo_root = os.environ['PROJECT_ROOT']
-
-# Read the committed (clean) content so we always patch the same baseline.
-result = subprocess.run(
-    ['git', 'show', 'HEAD:src/frontend/vite.config.js'],
-    cwd=repo_root, capture_output=True, text=True, check=True
-)
-original = result.stdout
-patched = original.replace(
-    "alias: {\n\t\t\t'fractal-components': fractalComponents\n\t\t}\n\t},",
-    "alias: {\n\t\t\t'fractal-components': fractalComponents\n\t\t},\n\t\tdedupe: ['ajv', 'ajv-formats', 'slim-select', 'svelte', 'color-hash']\n\t},"
-)
-if patched == original:
-    print('ERROR: vite.config.js patch did not apply — structure may have changed', file=sys.stderr)
-    sys.exit(1)
-open(path, 'w').write(patched)
-PYEOF
+python3 scripts/frontend-check-patch.py
 
 cd "$PROJECT_ROOT/src/frontend"
 # `npm ci` installs exactly the versions in package-lock.json and errors if
-# they don't match package.json — stricter and faster than `npm install`.
+# they don't match package.json - stricter and faster than `npm install`.
 npm ci
 npm run build
 
@@ -117,4 +97,4 @@ npm run build
 restore_vite_config
 trap - EXIT
 
-echo "    → $PROJECT_ROOT/src/frontend/build/"
+echo "    -> $PROJECT_ROOT/src/frontend/build/"
