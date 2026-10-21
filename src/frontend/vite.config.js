@@ -22,7 +22,8 @@ export default {
 				preprocess: vitePreprocess(),
 				// Single-user local app: build a static SPA, served by FastAPI. The fallback
 				// lets the client router handle every route (no SSR/prerender needed).
-				adapter: adapter({ fallback: 'index.html' })
+				adapter: adapter({ fallback: 'index.html' }),
+				alias: { '$lib': 'src/lib' }
 			}
 		)
 	],
