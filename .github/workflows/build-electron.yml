@@ -1,0 +1,111 @@
+name: Test electron build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    # All the Electron/npm tooling (package.json, scripts/, etc.) lives in
+    # electron/, alongside the Python/SvelteKit source at the repo root.
+    defaults:
+      run:
+        working-directory: electron
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux-x64
+            eb_flags: --linux --x64
+
+          - os: macos-26
+            platform: macos-arm64
+            eb_flags: --mac --arm64
+
+          - os: macos-26-intel
+            platform: macos-26-x64
+            eb_flags: --mac --x64
+
+          - os: macos-15-intel
+            platform: macos-15-x64
+            eb_flags: --mac --x64
+
+          - os: windows-2025
+            platform: windows-x64
+            eb_flags: --win --x64
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set fake version
+        shell: bash
+        run: |
+          VERSION="v9.9.9"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.13'
+
+      - run: npm install
+
+      - run: bash scripts/build-frontend.sh
+        shell: bash
+
+      - run: bash scripts/build-backend.sh
+        shell: bash
+
+      - name: Compile TypeScript (electron-vite)
+        run: npm run build
+
+      # macOS DMG creation intermittently fails with `hdiutil detach ...
+      # Resource busy` because Spotlight (mds/mdworker) grabs a lock on the
+      # freshly-mounted disk image right as electron-builder tries to eject
+      # it. Turning off indexing avoids the race.
+      - name: Disable Spotlight indexing (macOS only)
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off
+
+      # Pass explicit --platform --arch flags so electron-builder ignores the arch
+      # arrays in electron-builder.yml and only builds what this runner can produce.
+      # PyInstaller binaries are platform-specific, so cross-compiling is not possible.
+      # --publish never: with GH_TOKEN set on a tag build, electron-builder would
+      # otherwise auto-publish its artifacts (incl. blockmaps and latest*.yml) to
+      # the GitHub Release, bypassing the filtered upload step below.
+      # Retried a few times: even with Spotlight off, the DMG step can still
+      # hit the same transient hdiutil race on a loaded runner.
+      - name: Package with electron-builder
+        shell: bash
+        run: |
+          n=0
+          until npx electron-builder ${{ matrix.eb_flags }} --publish never; do
+            n=$((n + 1))
+            if [ "$n" -ge 3 ]; then
+              echo "electron-builder failed after $n attempts"
+              exit 1
+            fi
+            echo "electron-builder failed (attempt $n/3) - force-detaching any stuck disk images, retrying in 10s..."
+            if [ "$(uname -s)" = "Darwin" ]; then
+              hdiutil info | awk '/^\/dev\/disk/ {print $1}' | xargs -I{} hdiutil detach -force {} 2>/dev/null || true
+            fi
+            sleep 10
+          done
+        env:
+          # Authenticates electron-builder's GitHub downloads (Electron binary, etc.)
+          # without hitting anonymous rate limits.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

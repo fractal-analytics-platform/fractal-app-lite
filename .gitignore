@@ -24,3 +24,11 @@ state.json
 build/
 dist/
 fractal.spec
+
+# Electron (v3 branch) — the electron/ subfolder holds the npm/electron-builder
+# tooling; node_modules/, out/ and dist-electron/ are unanchored patterns so
+# they also match there.
+node_modules/
+out/
+dist-electron/
+electron/resources/fractal-app-lite/
