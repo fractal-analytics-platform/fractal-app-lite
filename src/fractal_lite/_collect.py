@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 import certifi
 
+from fractal_lite._execution import pixi_executable
 from fractal_lite._tasks import (
     DirectoryTaskSource,
     GitReleaseTaskSource,
@@ -68,7 +69,7 @@ def _ensure_pixi_env(package_dir: Path) -> None:
         return
     try:
         subprocess.run(
-            ["pixi", "install", "--manifest-path", str(pyproject)],
+            [pixi_executable(), "install", "--manifest-path", str(pyproject)],
             check=True,
             capture_output=True,
             text=True,
@@ -139,7 +140,7 @@ def _version_from_pixi_env(start: Path) -> str | None:
     try:
         result = subprocess.run(
             [
-                "pixi",
+                pixi_executable(),
                 "run",
                 "--manifest-path",
                 str(pyproject),

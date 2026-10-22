@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -11,6 +12,22 @@ from typing import Any
 
 # A callback invoked once per line of subprocess output (newline stripped).
 OnOutput = Callable[[str], None]
+
+
+def pixi_executable() -> str:
+    """Return the path to the ``pixi`` executable.
+
+    Falls back to pixi's default install dir (``$PIXI_HOME/bin``, else
+    ``~/.pixi/bin``) when ``pixi`` isn't on ``PATH``: apps launched from the
+    macOS Finder get a minimal ``PATH`` without the entries added by shell
+    profiles. Returns plain ``"pixi"`` if it can't be found anywhere, so the
+    caller's ``FileNotFoundError`` still names it.
+    """
+    found = shutil.which("pixi")
+    if found:
+        return found
+    pixi_home = Path(os.environ.get("PIXI_HOME", Path.home() / ".pixi"))
+    return shutil.which("pixi", path=str(pixi_home / "bin")) or "pixi"
 
 
 class RunCancelled(Exception):
@@ -125,7 +142,7 @@ def _run_executable(
             json.dump(kwargs, f)
 
         cmd = [
-            "pixi",
+            pixi_executable(),
             "run",
             "--manifest-path",
             str(pyproject_path),
