@@ -1,7 +1,7 @@
 name: Create GitHub release
 
-# Runs on every v3.x.y tag push → uploads to a GitHub Release.
-# Can also be triggered manually from the Actions tab → uploads as workflow artifacts (7 days).
+# Runs on every v3.x.y tag push -> uploads to a GitHub Release.
+# Can also be triggered manually from the Actions tab -> uploads as workflow artifacts (7 days).
 on:
   push:
     tags:
@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   # Create the release as a draft first. Draft releases are always mutable, so
   # the 5 matrix jobs below can each upload their own asset to it concurrently
-  # without racing — uploading straight to a freshly-created *published*
+  # without racing - uploading straight to a freshly-created *published*
   # release (e.g. via softprops/action-gh-release per matrix job) fails with
   # "Cannot upload asset to an immutable release" when two jobs hit it at once.
   create-release-draft:
@@ -40,7 +40,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: create-release-draft
     # create-release-draft is skipped (not failed) on a workflow_dispatch run,
-    # since there's no tag to attach a release to — still build in that case.
+    # since there's no tag to attach a release to - still build in that case.
     if: ${{ !cancelled() && !failure() }}
     permissions:
       contents: write
@@ -86,17 +86,17 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js 24
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: '22'
+          node-version: '24'
           package-manager-cache: false
 
-      # Python is needed by the vite.config.js patch (python3 heredoc in the build script).
-      - name: Set up Python 3.12
+      # Python is needed by the vite.config.js patch
+      - name: Set up Python 3.13
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Install npm dependencies
         run: npm install
