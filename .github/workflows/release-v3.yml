@@ -169,8 +169,7 @@ jobs:
 
       # electron-builder's artifactName template (${os}-${arch}) can't tell
       # macos-15-intel and macos-26-intel apart — both build "mac-x64" and
-      # would collide when uploaded to the same release. Rename to embed the
-      # actual runner and tag instead, matching v2's `<tag>-<name>-<os>` scheme.
+      # would collide when uploaded to the same release.
       - name: Rename artifact
         shell: bash
         run: |

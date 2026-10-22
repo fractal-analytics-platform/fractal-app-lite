@@ -3,197 +3,113 @@
 > [!WARNING]
 > This project is a proof of concept (POC). It is experimental, unstable, and not intended for production use.
 
-This is the `v3` branch of Fractal Lite: the same FastAPI + SvelteKit application as the other branches, packaged as a native desktop app with [Electron](https://www.electronjs.org/). The Python backend and SvelteKit frontend are bundled into a self-contained binary via PyInstaller, so no Python or Node.js installation is required on the user's machine.
-
 This project contains two main components:
 - fractal-lite: A minimalistic implementation of fractal core concepts (datasets, collection, tasks, workflows, projects, history) without need of a database.
-- An Electron desktop app that spawns the FastAPI/uvicorn backend as a child process and points a native window at it.
+- A desktop app built with pywebview that serves a Svelte frontend and provides native file dialogs via a Python bridge.
 
-## Get the app
+## Get the executable
 
-You can either download a pre-built installer or build it yourself.
+Fractal Lite is distributed as a single-file executable. You can either download
+a pre-built one or build it yourself.
 
 ### Option 1: download a release
 
-Pre-built installers for every `v3.x.y` release are available on the
-[Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v3&expanded=true).
+Pre-built executables for every `v2.x.y` release are available on the
+[Releases page](https://github.com/fractal-analytics-platform/fractal-app-lite/releases?q=v2&expanded=true).
 Download the asset matching your OS:
 
 | OS | Asset |
 | --- | --- |
-| Linux (x86_64, Ubuntu 22.04 or newer) | `v3.x.y-FractalLite-ubuntu-22.04.AppImage` |
-| Windows (x86_64) | `v3.x.y-FractalLite-windows-2025.exe` |
-| macOS, Apple Silicon (M1 or newer) | `v3.x.y-FractalLite-macos-26.dmg` |
-| macOS, Intel, macOS 15 | `v3.x.y-FractalLite-macos-15-intel.dmg` |
-| macOS, Intel, macOS 26 or newer | `v3.x.y-FractalLite-macos-26-intel.dmg` |
+| Linux (x86_64, Ubuntu 22.04 or newer) | `v2.x.y-fractal-ubuntu-22.04` |
+| Windows (x86_64) | `v2.x.y-fractal-windows-2025.exe` |
+| macOS, Apple Silicon (M1 or newer) | `v2.x.y-fractal-macos-26` |
+| macOS, Intel, macOS 15 | `v2.x.y-fractal-macos-15-intel` |
+| macOS, Intel, macOS 26 or newer | `v2.x.y-fractal-macos-26-intel` |
 
 ### Option 2: build it locally
 
-The build produces an installer for the OS (and CPU architecture) you run it on.
-Cross-compiling is not supported.
+The build produces an executable for the OS (and CPU architecture) you run it on.
 
 **Requirements**
 
-- [Node.js](https://nodejs.org/) 22+ and npm
-- [Python](https://www.python.org/) 3.12+, available as `python3`
+- [pixi](https://pixi.sh/latest/#installation)
+- Node.js 18+ and npm
 - git
-- bash. On Windows, use [Git Bash](https://git-scm.com/downloads/win) and make sure
-  `python3 --version` prints 3.12 or newer there.
 
 **Steps**
 
-All the Electron/npm tooling lives in the `electron/` subfolder. From the root of
-the cloned repository run:
+From the root of the cloned repository run (on Windows, use PowerShell or Git Bash):
 
 ```bash
-cd electron
-npm install
-npm run full-build
+# 1. Vendor the fractal-web component library
+pixi run clone-fractal-web
+cd fractal-web-clone/components
+npm install --omit=peer
+cd ../..
+
+# 2. Build the frontend
+pixi run build-frontend
+
+# 3. Build the executable
+pixi run build-executable
 ```
 
-`npm run full-build` builds the SvelteKit frontend, packages the Python backend with
-PyInstaller, and packages everything with electron-builder. The first run takes a while.
+The executable is written to the `dist` folder:
 
-The installer is written to `electron/dist-electron/`:
-
-| OS | Output |
-| --- | --- |
-| Linux | `FractalLite-<version>-linux-x86_64.AppImage` |
-| Windows | `FractalLite-<version>-win-x64.exe` |
-| macOS | `FractalLite-<version>-mac-<arch>.dmg` |
+- Linux and macOS: `dist/fractal`
+- Windows: `dist\fractal.exe`
 
 ## How to run the app
 
-<!-- FIXME: update once the macOS app is signed and notarized with an Apple Developer ID. -->
-None of the installers are code-signed, so each OS asks for confirmation the first
-time you launch the app.
+In the commands below, replace `<executable>` with the name of the file you
+downloaded (e.g. `v2.x.y-fractal-ubuntu-22.04`) or with the path of the one you
+built (e.g. `dist/fractal`).
 
 ### Linux
 
-Make the AppImage executable, then launch it:
+Make the file executable, then launch it:
 
 ```bash
-chmod +x <file>.AppImage
-./<file>.AppImage
-```
-
-If it fails with an error about FUSE (`dlopen(): error loading libfuse.so.2`),
-install FUSE 2:
-
-```bash
-sudo apt install libfuse2      # Ubuntu 22.04
-sudo apt install libfuse2t64   # Ubuntu 24.04 or newer
+chmod +x <executable>
+./<executable>
 ```
 
 ### macOS
 
-<!-- FIXME: remove the Gatekeeper steps and the troubleshooting note below once
-     the app is signed and notarized with an Apple Developer ID. -->
-
-The app isn't signed with an Apple Developer certificate, so Gatekeeper blocks
-it on the first launch. You only need to approve it once.
-
-1. **Install.** Double-click the downloaded `.dmg` file. In the window that opens,
-   drag the **Fractal Lite** icon onto the **Applications** folder.
-
-   <img src="docs/images/macos-step1.png" alt="Drag Fractal Lite onto the Applications folder" width="450">
-
-2. **First launch.** Open **Fractal Lite** from Applications. macOS refuses to
-   open it with a *"Fractal Lite" Not Opened* dialog, saying Apple could not
-   verify that it is free of malware. Click **Done**. Do **not** click
-   **Move to Trash**.
-
-   <img src="docs/images/macos-step2.png" alt="&quot;Fractal Lite&quot; Not Opened dialog" width="280">
-
-3. **Allow the app.** Open **System Settings → Privacy & Security** and scroll
-   down to the **Security** section. Next to the message *"Fractal Lite" was
-   blocked to protect your Mac*, click **Open Anyway**. macOS may ask for your
-   password or Touch ID.
-
-   <img src="docs/images/macos-step3.png" alt="Open Anyway button in Privacy &amp; Security settings" width="650">
-
-4. **Confirm.** A last dialog asks *Open "Fractal Lite"?*. Click **Open Anyway**.
-   The app starts, and from then on it opens normally.
-
-   <img src="docs/images/macos-step4.png" alt="Confirmation dialog with the Open Anyway button" width="280">
-
-The screenshots come from a Mac set to Italian. The button labels in English are
-the ones in bold above.
-
-If macOS says the app "is damaged and can't be opened", or that it contains
-malware and moves it to the Trash, re-download it, install it again, then
-re-sign it locally and remove the quarantine attribute:
+The executable is not signed, so Gatekeeper blocks it the first time. Make it
+executable and remove the quarantine attribute, then launch it from a terminal:
 
 ```bash
-codesign --force --deep --sign - "/Applications/Fractal Lite.app"
-xattr -cr "/Applications/Fractal Lite.app"
+chmod +x <executable>
+xattr -cr <executable>
+./<executable>
 ```
+
+The `xattr` step is only needed for downloaded files.
 
 ### Windows
 
-1. Run the installer (`.exe`). Windows Defender SmartScreen may warn about an
-   unknown publisher: click **More info**, then **Run anyway**.
-2. The installer installs the app for the current user and starts it.
-3. Afterwards, launch **Fractal Lite** from the Start menu or the desktop shortcut.
+Double-click the `.exe` file, or launch it from a terminal:
 
-## How it works
-
-When you launch Fractal Lite, Electron starts the Python server (`fractal-app-lite`) in the background, waits for it to be ready, then opens a window pointing at it. The UI and application logic live entirely inside the Python/SvelteKit bundle — Electron is only the container.
-
-```
-Electron (main process)
-  │
-  ├─ spawns ──► fractal-app-lite  (Python / uvicorn / FastAPI)
-  │                │
-  │                ├─ GET /api/*   → Python handlers
-  │                └─ GET /*       → static SvelteKit frontend
-  │
-  └─ opens ───► BrowserWindow → http://127.0.0.1:<random port>
+```powershell
+.\<executable>
 ```
 
-The port is chosen randomly at startup, so there are no conflicts with other services.
+The executable is not signed, so SmartScreen may show a warning the first time.
+Click **More info**, then **Run anyway**. A console window with the app logs opens
+next to the app window. Keep it open while you use the app.
 
-See `electron/documentation.md` for the full build/packaging pipeline and `electron/CLAUDE.md` for an architecture overview.
+### Open a saved project
+
+To open a previously saved project, pass its path with `--open`:
+
+```bash
+./<executable> --open demo.flp
+```
 
 ## Development
 
-Unless noted otherwise, run these from the `electron/` folder, after `npm install`.
-
-### Run in development mode
-
-```bash
-npm run build-components   # build frontend + Python backend (needed at least once)
-npm run dev
-```
-
-`npm run dev` compiles the TypeScript with hot-reload and launches Electron directly
-from the source tree.
-
-To rebuild only one part (the backend build bakes the frontend into the PyInstaller bundle, so after a frontend change you need both):
-
-```bash
-npm run build-frontend   # rebuild only the SvelteKit frontend (scripts/build-frontend.sh)
-npm run build-backend    # rebuild only the Python binary (scripts/build-backend.sh)
-```
-
-### Other useful commands
-
-```bash
-npm run typecheck        # type-check the main process TypeScript (no output = clean)
-npm run build            # compile TypeScript only → out/
-```
-
-### Backend-only development
-
-The Python backend can still be run standalone (without Electron) via pixi, e.g. for iterating on the API without rebuilding the desktop shell. Run this from the repo root (not `electron/`):
-
-```bash
-pixi run serve   # runs uvicorn directly, serving the built frontend if present
-```
-
 ### Tests
-
-Run these from the repo root (not `electron/`):
 
 ```bash
 pixi run -e dev test           # full test suite
@@ -202,29 +118,9 @@ pixi run -e dev test-fast      # skip slow e2e tests
 
 ### Linting
 
-From the repo root:
-
 ```bash
 pixi run -e dev lint
 ```
-
-## Releasing a new version
-
-Push a `v3.x.y` tag:
-
-```bash
-git tag v3.1.0
-git push --tags
-```
-
-This triggers `.github/workflows/release.yml`, which builds installers for Linux, Windows and macOS (Intel and Apple Silicon) and uploads them to a GitHub Release. To trigger a build without creating a release (useful for testing), run the workflow manually from the **Actions** tab — the results are uploaded as workflow artifacts (kept for 7 days) instead.
-
-## Notes
-
-- **No database** — fractal-app-lite uses in-memory state and file-based project storage.
-- **macOS code-signing** — for public distribution, uncomment the `hardenedRuntime` / `entitlements` lines in `electron/electron-builder.yml` and provide an Apple Developer certificate.
-- **macOS notarization** — requires an Apple Developer account and the `CSC_LINK` / `APPLE_ID` environment variables set when running `electron-builder`.
-- **`fractal-web-clone`** — the `fractal-web-clone/` directory at the repo root is created by `scripts/build-frontend.sh` (not a git submodule). Delete it and re-run the build script to refresh it.
 
 ## License
 
