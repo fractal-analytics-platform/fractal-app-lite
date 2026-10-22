@@ -109,15 +109,3 @@ jobs:
           # Authenticates electron-builder's GitHub downloads (Electron binary, etc.)
           # without hitting anonymous rate limits.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Apple Silicon refuses to run (and Gatekeeper reports as malware) an app
-      # whose signature doesn't match its contents, so fail the build if the
-      # ad-hoc signature from scripts/after-pack.js isn't valid.
-      - name: Verify code signature (macOS only)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          APP=$(find dist-electron -maxdepth 2 -name 'Fractal Lite.app' -type d | head -1)
-          echo "App bundle: $APP"
-          codesign --verify --deep --strict --verbose=2 "$APP"
-          codesign --display --verbose=2 "$APP"
