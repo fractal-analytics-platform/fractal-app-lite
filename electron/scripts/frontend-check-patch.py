@@ -17,7 +17,7 @@ result = subprocess.run(
 original = result.stdout
 patched = original.replace(
     "alias: {\n\t\t\t'fractal-components': fractalComponents\n\t\t}\n\t},",
-    "alias: {\n\t\t\t'fractal-components': fractalComponents\n\t\t},\n\t\tdedupe: ['ajv', 'ajv-formats', 'slim-select', 'svelte', 'color-hash']\n\t},",
+    "alias: {\n\t\t\t'fractal-components': fractalComponents\n\t\t},\n\t\tdedupe: ['ajv', 'ajv-formats', 'slim-select', 'svelte', 'color-hash', 'marked', 'dompurify']\n\t},",
 )
 if patched == original:
     print(

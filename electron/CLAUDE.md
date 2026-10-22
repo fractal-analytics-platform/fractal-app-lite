@@ -198,9 +198,9 @@ Getting from source to a runnable app requires two independent build steps.
 
 This runs `scripts/build-components.sh`, a thin wrapper that calls `scripts/build-frontend.sh` (steps 1a–1b) and then `scripts/build-backend.sh` (step 1c). Each part can also be run on its own via `npm run build-frontend` / `npm run build-backend` — but note that the backend build bakes the frontend into the PyInstaller bundle, so a frontend change requires both.
 
-**1a. Clone `fractal-web-clone`** (skipped if already present)
+**1a. Clone `fractal-web-clone`** (deleted and re-cloned on every run)
 
-The SvelteKit frontend imports a component library called `fractal-components`. That library lives in a separate GitHub repo (`fractal-analytics-platform/fractal-web`). The build script reads the pinned version tag from `vite.config.js` and shallow-clones it into `fractal-web-clone/` at the repo root (`../fractal-web-clone/` from here). The vite config then aliases `fractal-components` to the source files in that clone.
+The SvelteKit frontend imports a component library called `fractal-components`. That library lives in a separate GitHub repo (`fractal-analytics-platform/fractal-web`). The build script shallow-clones the tag pinned in `FRACTAL_WEB_REF` (currently `v1.29.10`) into `fractal-web-clone/` at the repo root (`../fractal-web-clone/` from here). The vite config then aliases `fractal-components` to the source files in that clone.
 
 **1b. Build the frontend**
 
@@ -277,7 +277,7 @@ npm version patch && git push && git push --tags  # release
 
 - **No database**: fractal-app-lite uses in-memory state and file-based project storage. There is no PostgreSQL or any other database.
 - **Port is random**: a free port is chosen at startup. Do not hardcode any port number.
-- **`fractal-web-clone`**: the `fractal-web-clone/` directory at the repo root is not a git submodule — it is a plain directory created by `build-frontend.sh` and gitignored. If you delete it, the next `build-frontend.sh` run will re-clone it.
+- **`fractal-web-clone`**: the `fractal-web-clone/` directory at the repo root is not a git submodule — it is a plain directory created by `build-frontend.sh` and gitignored. `build-frontend.sh` deletes and re-clones it on every run.
 - **macOS code-signing**: PyInstaller binaries on macOS 13+ require the `com.apple.security.cs.allow-unsigned-executable-memory` entitlement. Uncomment and configure the `hardenedRuntime` / `entitlements` lines in `electron-builder.yml` when targeting macOS distribution.
 - **macOS notarization**: for public distribution you need an Apple Developer certificate and the `CSC_LINK` / `APPLE_ID` env vars set when running `electron-builder`.
 - **Linux `--no-sandbox`**: the `scripts/after-pack.js` hook wraps the Linux Electron binary in a shell script that passes `--no-sandbox`, which is required when running as root or in certain container environments.
