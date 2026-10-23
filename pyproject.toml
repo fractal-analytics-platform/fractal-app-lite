@@ -16,7 +16,8 @@ description = "FastAPI + Svelte desktop port of the Fractal Tasks Sandbox."
 
 [project.optional-dependencies]
 dev = ["ruff", "pytest", "pytest-cov", "httpx"]
-build = ["pyinstaller"]
+# Pinned: these end up in the packaged Electron app (see electron/scripts/build-backend.sh).
+build = ["pyinstaller==6.22.3", "websockets==17.3"]
 
 [project.scripts]
 # Launch the native desktop window (uvicorn in a thread + pywebview).
@@ -49,6 +50,10 @@ python = ".pixi/envs/dev"
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
+
+[tool.pixi.dependencies]
+# Python version bundled into the packaged Electron app by PyInstaller.
+python = "3.13.*"
 
 
 [tool.pixi.pypi-dependencies]
