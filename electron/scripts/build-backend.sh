@@ -92,23 +92,14 @@ else
   _add_data="$PROJECT_ROOT/src/frontend/build:frontend/build"
 fi
 
-# cd into the repo root so that `pip install .` finds pyproject.toml and
-# installs fractal-app-lite together with all its declared dependencies.
-# All PyInstaller output paths are absolute, so nothing gets written here.
-cd "$PROJECT_ROOT"
-
-# Create an isolated virtual environment in the temp dir so we don't pollute
-# the system Python. Then install the project and PyInstaller into it.
-# `pip install .` reads pyproject.toml and installs fractal-app-lite plus
-# every package it depends on (uvicorn, fastapi, ngio, polars, ...).
-python3 -m venv "$BUILD_DIR/venv"
-if [[ -d "$BUILD_DIR/venv/Scripts" ]]; then
-  VENV_PYTHON="$BUILD_DIR/venv/Scripts/python"  # Windows (Git Bash)
-else
-  VENV_PYTHON="$BUILD_DIR/venv/bin/python"       # Linux / macOS
-fi
-"$VENV_PYTHON" -m pip install pip --upgrade
-"$VENV_PYTHON" -m pip install --quiet . pyinstaller==6.22.3 websockets==17.3
+# All Python packages (fractal-app-lite and its dependencies, PyInstaller,
+# websockets) and Python itself come from the pixi `build` environment, which
+# is defined in pyproject.toml and pinned for every platform in pixi.lock.
+# --locked makes pixi fail instead of silently re-solving if pixi.lock is out of
+# date with respect to pyproject.toml, so every build uses exactly the locked
+# versions. `pixi run` also activates the environment, which PyInstaller needs
+# to find the environment's shared libraries.
+PIXI_RUN=(pixi run --locked --manifest-path "$PROJECT_ROOT/pyproject.toml" -e build)
 
 # On macOS, tell PyInstaller which CPU architecture to target. Without this,
 # if the system Python is a "universal2" binary (supports both arm64 and
@@ -136,7 +127,7 @@ fi
 # --paths adds src/ to the Python path so that "from backend.main import app"
 # in our entry point resolves correctly.
 echo "==> Running PyInstaller..."
-"$VENV_PYTHON" -m PyInstaller \
+"${PIXI_RUN[@]}" python -m PyInstaller \
   --onedir \
   --name fractal-app-lite \
   --clean \
