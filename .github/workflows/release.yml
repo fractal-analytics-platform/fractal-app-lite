@@ -102,7 +102,7 @@ jobs:
         uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
         with:
           # Python and all backend packages come from this locked environment.
-          pixi-version: v0.74.0
+          pixi-version: v0.83.0
           environments: build
           locked: true
 
