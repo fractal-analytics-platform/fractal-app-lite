@@ -92,15 +92,6 @@ else
   _add_data="$PROJECT_ROOT/src/frontend/build:frontend/build"
 fi
 
-# All Python packages (fractal-app-lite and its dependencies, PyInstaller,
-# websockets) and Python itself come from the pixi `build` environment, which
-# is defined in pyproject.toml and pinned for every platform in pixi.lock.
-# --locked makes pixi fail instead of silently re-solving if pixi.lock is out of
-# date with respect to pyproject.toml, so every build uses exactly the locked
-# versions. `pixi run` also activates the environment, which PyInstaller needs
-# to find the environment's shared libraries.
-PIXI_RUN=(pixi run --locked --manifest-path "$PROJECT_ROOT/pyproject.toml" -e build)
-
 # On macOS, tell PyInstaller which CPU architecture to target. Without this,
 # if the system Python is a "universal2" binary (supports both arm64 and
 # x86_64), PyInstaller may produce a universal2 bundle that doesn't work
@@ -126,8 +117,17 @@ fi
 #
 # --paths adds src/ to the Python path so that "from backend.main import app"
 # in our entry point resolves correctly.
+#
+# All Python packages (fractal-app-lite and its dependencies, PyInstaller,
+# websockets) and Python itself come from the pixi `build` environment, which
+# is defined in pyproject.toml and pinned for every platform in pixi.lock.
+# --locked makes pixi fail instead of silently re-solving if pixi.lock is out of
+# date with respect to pyproject.toml, so every build uses exactly the locked
+# versions. `pixi run` also activates the environment, which PyInstaller needs
+# to find the environment's shared libraries.
 echo "==> Running PyInstaller..."
-"${PIXI_RUN[@]}" python -m PyInstaller \
+pixi run --locked --manifest-path "$PROJECT_ROOT/pyproject.toml" -e build \
+  python -m PyInstaller \
   --onedir \
   --name fractal-app-lite \
   --clean \
