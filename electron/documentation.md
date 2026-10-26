@@ -347,7 +347,7 @@ Each machine runs the exact same sequence of steps:
 1. Checkout
 2. Set version — extract version number from the git tag (e.g. v3.1.5 → 3.1.5)
               and write it into package.json (npm version)
-3. Set up Node.js 22
+3. Set up Node.js 26
 4. Set up Python 3.12  ← needed by the vite.config.js patch (a Python heredoc)
                           and by PyInstaller
 5. npm install         ← installs Electron, TypeScript, electron-vite, electron-builder
