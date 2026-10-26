@@ -1,14 +1,14 @@
 <script>
-	import DatasetTable from '$lib/components/DatasetTable.svelte';
+	import DatasetTable from '#lib/components/DatasetTable.svelte';
 	import {
 		addDatasetStore,
 		removeDatasetStore,
 		loadDatasetCsv,
 		saveDatasetCsv,
 		clearDatasetImages
-	} from '$lib/api.js';
-	import { store, notify } from '$lib/stores.svelte.js';
-	import { pickOpenDirectory, pickOpenFile, pickSaveFile } from '$lib/filepick.js';
+	} from '#lib/api.js';
+	import { store, notify } from '#lib/stores.svelte.js';
+	import { pickOpenDirectory, pickOpenFile, pickSaveFile } from '#lib/filepick.js';
 
 	let busy = $state(false);
 

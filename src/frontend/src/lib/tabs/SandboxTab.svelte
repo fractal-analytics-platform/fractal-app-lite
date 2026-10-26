@@ -1,7 +1,7 @@
 <script>
 	import { tick } from 'svelte';
 	import { JSchema, stripNullAndEmptyObjectsAndArrays } from 'fractal-components';
-	import DatasetTable from '$lib/components/DatasetTable.svelte';
+	import DatasetTable from '#lib/components/DatasetTable.svelte';
 	import {
 		getTaskSchema,
 		runTask,
@@ -10,12 +10,12 @@
 		previewDataset,
 		exportParams,
 		importParams
-	} from '$lib/api.js';
-	import { connectRunSocket } from '$lib/ws.js';
-	import { store, notify } from '$lib/stores.svelte.js';
-	import { pickOpenFile, pickSaveFile } from '$lib/filepick.js';
-	import { enhancePathFields } from '$lib/pathfield.js';
-	import TaskFilters from '$lib/components/TaskFilters.svelte';
+	} from '#lib/api.js';
+	import { connectRunSocket } from '#lib/ws.js';
+	import { store, notify } from '#lib/stores.svelte.js';
+	import { pickOpenFile, pickSaveFile } from '#lib/filepick.js';
+	import { enhancePathFields } from '#lib/pathfield.js';
+	import TaskFilters from '#lib/components/TaskFilters.svelte';
 
 	// Args each task's run method injects itself, hidden from the forms (mirrors the
 	// NiceGUI _INIT_HIDDEN / _PARALLEL_HIDDEN in sandbox_tab.py).

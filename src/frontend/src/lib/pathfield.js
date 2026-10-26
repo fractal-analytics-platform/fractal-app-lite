@@ -5,7 +5,7 @@
 // input and notify Svelte's two-way binding. A MutationObserver re-applies the buttons
 // when the form re-renders (task switch, array item added, etc.).
 
-import { pickOpenFile, pickOpenDirectory } from '$lib/filepick.js';
+import { pickOpenFile, pickOpenDirectory } from '#lib/filepick.js';
 
 // Heuristic: a field is path-like when its (case-insensitive) label mentions a
 // path/dir/file/folder. Pydantic titles like "Zarr Dir" or "Input Path" match.

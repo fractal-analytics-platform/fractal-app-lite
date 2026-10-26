@@ -1,8 +1,8 @@
 <script>
 	// Read-only image table: zarr_url, active badge, dynamic attribute columns, image +
 	// active counts, client-side quick-search, pagination, and per-row open-in-napari.
-	import { openInNapari } from '$lib/api.js';
-	import { notify } from '$lib/stores.svelte.js';
+	import { openInNapari } from '#lib/api.js';
+	import { notify } from '#lib/stores.svelte.js';
 
 	let { dataset = null, pageSize = 25, onRemove = null } = $props();
 

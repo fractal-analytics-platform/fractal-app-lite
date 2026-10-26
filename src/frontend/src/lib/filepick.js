@@ -4,8 +4,8 @@
 // available (browser / `serve` mode) falls back to a typed-path modal. All three
 // resolve to an absolute path, or null if the user cancelled.
 
-import { fsOpenFile, fsOpenDirectory, fsSaveFile } from '$lib/api.js';
-import { promptForPath } from '$lib/stores.svelte.js';
+import { fsOpenFile, fsOpenDirectory, fsSaveFile } from '#lib/api.js';
+import { promptForPath } from '#lib/stores.svelte.js';
 
 const electron = typeof window !== 'undefined' ? window.fractalElectron : undefined;
 

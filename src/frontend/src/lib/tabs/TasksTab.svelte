@@ -7,11 +7,11 @@
 		getTaskDetails,
 		saveRegistry,
 		loadRegistry
-	} from '$lib/api.js';
-	import { store, notify } from '$lib/stores.svelte.js';
-	import { renderMarkdown } from '$lib/markdown.js';
-	import { pickOpenDirectory, pickOpenFile, pickSaveFile } from '$lib/filepick.js';
-	import TaskFilters from '$lib/components/TaskFilters.svelte';
+	} from '#lib/api.js';
+	import { store, notify } from '#lib/stores.svelte.js';
+	import { renderMarkdown } from '#lib/markdown.js';
+	import { pickOpenDirectory, pickOpenFile, pickSaveFile } from '#lib/filepick.js';
+	import TaskFilters from '#lib/components/TaskFilters.svelte';
 
 	let selectedName = $state(null); // selected task's unique_id
 	let filteredTasks = $state([]);

@@ -1,4 +1,6 @@
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { fileURLToPath, URL } from 'node:url';
 
 // Vendor the JSchema form renderer by aliasing `fractal-components` straight to the
@@ -14,7 +16,14 @@ const fractalComponentsRoot = fileURLToPath(
 );
 
 export default {
-	plugins: [sveltekit()],
+	plugins: [
+		sveltekit({
+			preprocess: vitePreprocess(),
+			// Single-user local app: build a static SPA, served by FastAPI. The fallback
+			// lets the client router handle every route (no SSR/prerender needed).
+			adapter: adapter({ fallback: 'index.html' })
+		})
+	],
 	resolve: {
 		alias: {
 			'fractal-components': fractalComponents
