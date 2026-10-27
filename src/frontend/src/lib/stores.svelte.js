@@ -2,7 +2,7 @@
 // process, single user: a couple of module-level `$state` objects are plenty, and they
 // are mutated in place from any tab so cross-tab refresh is automatic.
 
-import { getDataset, getProject } from '$lib/api.js';
+import { getDataset, getProject } from '#lib/api.js';
 
 // The open project (ProjectInfo dict, or null when none is open), the shared dataset
 // (model_dump dict) and the registered tasks list.

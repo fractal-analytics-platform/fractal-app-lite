@@ -1,5 +1,5 @@
 <script>
-	import { toasts, dismissToast } from '$lib/stores.svelte.js';
+	import { toasts, dismissToast } from '#lib/stores.svelte.js';
 
 	const CLASS = {
 		info: 'text-bg-secondary',

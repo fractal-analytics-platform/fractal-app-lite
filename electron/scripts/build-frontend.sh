@@ -12,7 +12,7 @@
 #   bash scripts/build-frontend.sh
 set -euo pipefail
 
-FRACTAL_WEB_REF="v1.29.10"
+FRACTAL_WEB_REF="v1.30.0-a2"
 
 # Absolute path to the repo root - two levels up from this script
 # (electron/scripts/../..) - so the script works regardless of which

@@ -1,6 +1,6 @@
 <script>
 	// Typed-path fallback dialog, shown only when no native OS dialog is available.
-	import { pathModal, resolvePathModal } from '$lib/stores.svelte.js';
+	import { pathModal, resolvePathModal } from '#lib/stores.svelte.js';
 
 	function submit(e) {
 		e?.preventDefault();

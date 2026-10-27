@@ -1,8 +1,8 @@
 <script>
 	import { tick } from 'svelte';
 	import { JSchema, stripNullAndEmptyObjectsAndArrays } from 'fractal-components';
-	import DatasetTable from '$lib/components/DatasetTable.svelte';
-	import TaskFilters from '$lib/components/TaskFilters.svelte';
+	import DatasetTable from '#lib/components/DatasetTable.svelte';
+	import TaskFilters from '#lib/components/TaskFilters.svelte';
 	import {
 		getTaskSchema,
 		getWorkflow,
@@ -12,11 +12,11 @@
 		exportWorkflowFractal,
 		importWorkflowFractal,
 		listWorkflowHistory
-	} from '$lib/api.js';
-	import { connectRunSocket } from '$lib/ws.js';
-	import { store, notify } from '$lib/stores.svelte.js';
-	import { pickOpenFile, pickSaveFile } from '$lib/filepick.js';
-	import { enhancePathFields } from '$lib/pathfield.js';
+	} from '#lib/api.js';
+	import { connectRunSocket } from '#lib/ws.js';
+	import { store, notify } from '#lib/stores.svelte.js';
+	import { pickOpenFile, pickSaveFile } from '#lib/filepick.js';
+	import { enhancePathFields } from '#lib/pathfield.js';
 
 	// Args each task's run injects itself, hidden from the forms (mirrors SandboxTab).
 	const HIDDEN = {

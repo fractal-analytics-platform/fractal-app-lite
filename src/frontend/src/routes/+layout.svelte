@@ -5,12 +5,12 @@
 	import 'bootstrap/dist/css/bootstrap.min.css';
 	import 'bootstrap-icons/font/bootstrap-icons.css';
 	import { onMount } from 'svelte';
-	import Toasts from '$lib/components/Toasts.svelte';
-	import PathModal from '$lib/components/PathModal.svelte';
-	import NewProjectModal from '$lib/components/NewProjectModal.svelte';
-	import { listTasks, openProject, saveProject } from '$lib/api.js';
-	import { store, notify, refreshDataset, refreshProject } from '$lib/stores.svelte.js';
-	import { pickOpenDirectory } from '$lib/filepick.js';
+	import Toasts from '#lib/components/Toasts.svelte';
+	import PathModal from '#lib/components/PathModal.svelte';
+	import NewProjectModal from '#lib/components/NewProjectModal.svelte';
+	import { listTasks, openProject, saveProject } from '#lib/api.js';
+	import { store, notify, refreshDataset, refreshProject } from '#lib/stores.svelte.js';
+	import { pickOpenDirectory } from '#lib/filepick.js';
 
 	let { children } = $props();
 

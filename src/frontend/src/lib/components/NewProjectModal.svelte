@@ -6,9 +6,9 @@
 	//
 	// The zarr_dir defaults to a `zarr_dir` folder inside the project directory and tracks
 	// it until the user edits the field by hand.
-	import { newProject } from '$lib/api.js';
-	import { notify } from '$lib/stores.svelte.js';
-	import { pickOpenDirectory } from '$lib/filepick.js';
+	import { newProject } from '#lib/api.js';
+	import { notify } from '#lib/stores.svelte.js';
+	import { pickOpenDirectory } from '#lib/filepick.js';
 
 	let { open = $bindable(false), onCreated } = $props();
 

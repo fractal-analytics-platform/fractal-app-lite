@@ -1,11 +1,11 @@
 <script>
 	import { onMount } from 'svelte';
-	import DatasetTab from '$lib/tabs/DatasetTab.svelte';
-	import SandboxTab from '$lib/tabs/SandboxTab.svelte';
-	import WorkflowTab from '$lib/tabs/WorkflowTab.svelte';
-	import TasksTab from '$lib/tabs/TasksTab.svelte';
-	import { listTasks } from '$lib/api.js';
-	import { store, notify, refreshDataset } from '$lib/stores.svelte.js';
+	import DatasetTab from '#lib/tabs/DatasetTab.svelte';
+	import SandboxTab from '#lib/tabs/SandboxTab.svelte';
+	import WorkflowTab from '#lib/tabs/WorkflowTab.svelte';
+	import TasksTab from '#lib/tabs/TasksTab.svelte';
+	import { listTasks } from '#lib/api.js';
+	import { store, notify, refreshDataset } from '#lib/stores.svelte.js';
 
 	const TABS = [
 		{ id: 'dataset', label: 'Dataset', icon: 'bi-table' },
