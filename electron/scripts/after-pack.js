@@ -3,8 +3,11 @@ const path = require('path')
 const { execFileSync } = require('child_process')
 
 module.exports = async function (context) {
-  // FIXME: remove once we sign with an Apple Developer ID certificate.
-  if (context.electronPlatformName === 'darwin') return adHocSignMac(context)
+  // With a certificate (CSC_LINK), electron-builder signs the app itself.
+  if (context.electronPlatformName === 'darwin') {
+    if (!process.env.CSC_LINK) adHocSignMac(context)
+    return
+  }
   if (context.electronPlatformName !== 'linux') return
 
   const execName = context.packager.executableName
@@ -22,8 +25,7 @@ module.exports = async function (context) {
   fs.chmodSync(bin, '0755')
 }
 
-// FIXME: remove this function once we sign with an Apple Developer ID
-// certificate (electron-builder then signs the bundle itself).
+// Only used without a certificate (local builds, CI on pull requests).
 //
 // electron-builder modifies Electron's prebuilt (ad-hoc signed) app bundle —
 // renames the executable, rewrites Info.plist, adds our resources — and with

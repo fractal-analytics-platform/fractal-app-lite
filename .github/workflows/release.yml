@@ -142,9 +142,31 @@ jobs:
       # the GitHub Release, bypassing the filtered upload step below.
       # Retried a few times: even with Spotlight off, the DMG step can still
       # hit the same transient hdiutil race on a loaded runner.
+      #
+      # macOS: sign and notarize with the MACOS_* secrets (docs/macos-signing.md).
+      # Exported only on macOS, or electron-builder would use CSC_LINK on Windows.
       - name: Package with electron-builder
         shell: bash
         run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            for name in MACOS_CERTIFICATE_P12_BASE64 MACOS_CERTIFICATE_PASSWORD \
+                MACOS_NOTARY_API_KEY_P8 MACOS_NOTARY_API_KEY_ID MACOS_NOTARY_API_ISSUER_ID; do
+              if [ -z "${!name}" ]; then
+                echo "::error::Secret $name is not set (see docs/macos-signing.md)"
+                exit 1
+              fi
+            done
+            export CSC_LINK="$MACOS_CERTIFICATE_P12_BASE64"
+            export CSC_KEY_PASSWORD="$MACOS_CERTIFICATE_PASSWORD"
+            # notarytool needs the API key as a file.
+            export APPLE_API_KEY="$RUNNER_TEMP/AuthKey.p8"
+            printf '%s\n' "$MACOS_NOTARY_API_KEY_P8" > "$APPLE_API_KEY"
+            trap 'rm -f "$APPLE_API_KEY"' EXIT
+            export APPLE_API_KEY_ID="$MACOS_NOTARY_API_KEY_ID"
+            export APPLE_API_ISSUER="$MACOS_NOTARY_API_ISSUER_ID"
+          fi
+          unset MACOS_CERTIFICATE_P12_BASE64 MACOS_CERTIFICATE_PASSWORD MACOS_NOTARY_API_KEY_P8
+
           n=0
           until npx electron-builder ${{ matrix.eb_flags }} --publish never; do
             n=$((n + 1))
@@ -162,10 +184,13 @@ jobs:
           # Authenticates electron-builder's GitHub downloads (Electron binary, etc.)
           # without hitting anonymous rate limits.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_API_KEY_P8: ${{ secrets.MACOS_NOTARY_API_KEY_P8 }}
+          MACOS_NOTARY_API_KEY_ID: ${{ secrets.MACOS_NOTARY_API_KEY_ID }}
+          MACOS_NOTARY_API_ISSUER_ID: ${{ secrets.MACOS_NOTARY_API_ISSUER_ID }}
 
-      # Apple Silicon refuses to run (and Gatekeeper reports as malware) an app
-      # whose signature doesn't match its contents, so fail the build if the
-      # ad-hoc signature from scripts/after-pack.js isn't valid.
+      # Check the app is signed, notarized and accepted by Gatekeeper.
       - name: Verify code signature (macOS only)
         if: runner.os == 'macOS'
         shell: bash
@@ -174,6 +199,8 @@ jobs:
           echo "App bundle: $APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign --display --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute --verbose=2 "$APP"
 
       # electron-builder's artifactName template (${os}-${arch}) can't tell
       # macos-15-intel and macos-26-intel apart — both build "mac-x64" and
