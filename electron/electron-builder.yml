@@ -28,16 +28,16 @@ extraResources:
   - from: build-resources/fractal_logo.png
     to: fractal_logo.png
 
+# macOS signing uses CSC_LINK / CSC_KEY_PASSWORD, notarization uses
+# APPLE_API_KEY / APPLE_API_KEY_ID / APPLE_API_ISSUER (set by release.yml).
+# Without them, scripts/after-pack.js ad-hoc signs the app instead.
 mac:
   category: public.app-category.developer-tools
-  # FIXME: remove `identity: null` once we have an Apple Developer ID
-  # certificate, and enable hardenedRuntime/entitlements below plus notarization.
-  # No Developer ID certificate: skip electron-builder's signing step.
-  # scripts/after-pack.js ad-hoc signs the bundle instead.
-  identity: null
-  # PyInstaller binaries require an entitlement for running unsigned code on macOS 14+
-  # hardenedRuntime: true
-  # entitlements: build-resources/entitlements.mac.plist
+  # Hardened runtime is required for notarization; the entitlements relax it
+  # for Electron and the PyInstaller backend.
+  hardenedRuntime: true
+  entitlements: build-resources/entitlements.mac.plist
+  entitlementsInherit: build-resources/entitlements.mac.plist
   target:
     - target: dmg
 
