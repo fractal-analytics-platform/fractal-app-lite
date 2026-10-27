@@ -200,7 +200,7 @@ This runs `scripts/build-components.sh`, a thin wrapper that calls `scripts/buil
 
 **1a. Clone `fractal-web-clone`** (deleted and re-cloned on every run)
 
-The SvelteKit frontend imports a component library called `fractal-components`. That library lives in a separate GitHub repo (`fractal-analytics-platform/fractal-web`). The build script shallow-clones the tag pinned in `FRACTAL_WEB_REF` (currently `v1.29.10`) into `fractal-web-clone/` at the repo root (`../fractal-web-clone/` from here). The vite config then aliases `fractal-components` to the source files in that clone.
+The SvelteKit frontend imports a component library called `fractal-components`. That library lives in a separate GitHub repo (`fractal-analytics-platform/fractal-web`). The build script shallow-clones the tag pinned in `FRACTAL_WEB_REF` (currently `v1.30.0-a2`) into `fractal-web-clone/` at the repo root (`../fractal-web-clone/` from here). The vite config then aliases `fractal-components` to the source files in that clone.
 
 **1b. Build the frontend**
 
