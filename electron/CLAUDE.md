@@ -166,6 +166,7 @@ fractal-app-lite/  (v3 branch)
     ├── resources/              GITIGNORED — populated by build-backend.sh
     │   └── fractal-app-lite/
     │       ├── fractal-app-lite   The executable (fractal-app-lite.exe on Windows)
+    │       ├── pixi               Bundled pixi executable (pixi.exe on Windows), from fetch-pixi.sh
     │       └── _internal/         PyInstaller bundle: Python runtime + all packages + static frontend
     │           ├── backend/
     │           ├── fractal_lite/
@@ -177,7 +178,8 @@ fractal-app-lite/  (v3 branch)
     │
     ├── scripts/
     │   ├── build-frontend.sh   Builds the SvelteKit frontend from ../src/frontend/
-    │   ├── build-backend.sh    Builds the PyInstaller binary (frontend baked in)
+    │   ├── build-backend.sh    Builds the PyInstaller binary (frontend baked in), then runs fetch-pixi.sh
+    │   ├── fetch-pixi.sh       Downloads pixi next to the backend executable
     │   ├── build-components.sh Thin wrapper: runs build-frontend.sh then build-backend.sh
     │   └── after-pack.js       Post-packaging hook: wraps the Linux binary with --no-sandbox
     │
