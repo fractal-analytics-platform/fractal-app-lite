@@ -18,22 +18,23 @@ OnOutput = Callable[[str], None]
 def pixi_executable() -> str:
     """Return the path to the ``pixi`` executable.
 
-    In the packaged (PyInstaller) app, prefer the pixi executable bundled next
-    to the app executable (placed there by ``electron/scripts/fetch-pixi.sh``),
-    so the app doesn't depend on a pixi installed on the user's machine.
+    In the packaged (PyInstaller) app, always use the pixi executable bundled
+    next to the app executable (placed there by
+    ``electron/scripts/fetch-pixi.sh``), so the app never depends on a pixi
+    installed on the user's machine.
 
-    Otherwise use ``pixi`` from ``PATH``, falling back to pixi's default install
-    dir (``$PIXI_HOME/bin``, else ``~/.pixi/bin``): apps launched from the
-    macOS Finder get a minimal ``PATH`` without the entries added by shell
-    profiles. Returns plain ``"pixi"`` if it can't be found anywhere, so the
-    caller's ``FileNotFoundError`` still names it.
+    When running from source (dev mode, tests) there is no bundled pixi, so use
+    ``pixi`` from ``PATH``, falling back to pixi's default install dir
+    (``$PIXI_HOME/bin``, else ``~/.pixi/bin``). Returns plain ``"pixi"`` if it
+    can't be found anywhere, so the caller's ``FileNotFoundError`` still names
+    it.
     """
-    if getattr(sys, "frozen", False):
-        bundled = Path(sys.executable).parent / (
-            "pixi.exe" if sys.platform == "win32" else "pixi"
+
+    if getattr(sys, "frozen", False): # True in the packaged (PyInstaller) app
+        return str(
+            Path(sys.executable).parent
+            / ("pixi.exe" if sys.platform == "win32" else "pixi")
         )
-        if bundled.is_file():
-            return str(bundled)
     found = shutil.which("pixi")
     if found:
         return found
