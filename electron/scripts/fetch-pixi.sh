@@ -14,8 +14,8 @@
 # Usage:
 #   bash scripts/fetch-pixi.sh
 #
-# The bundled pixi version is pinned below, so every build ships the same
-# pixi. Keep it in sync with the `pixi-version` used by the GitHub workflows.
+# The bundled pixi version is pinned by PIXI_VERSION in versions.env, so every
+# build ships the same pixi. The GitHub workflows read the same file.
 set -euo pipefail
 
 ELECTRON_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -45,7 +45,8 @@ case "$(uname -m)" in
 esac
 ASSET="pixi-${_arch}-${_os}.${_ext}"
 
-PIXI_VERSION="v0.83.0"
+# Pinned versions (PIXI_VERSION).
+source "$ELECTRON_ROOT/versions.env"
 BASE_URL="https://github.com/prefix-dev/pixi/releases/download/$PIXI_VERSION"
 
 echo "==> Downloading pixi ($PIXI_VERSION, $ASSET)..."

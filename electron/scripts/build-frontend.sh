@@ -12,13 +12,13 @@
 #   bash scripts/build-frontend.sh
 set -euo pipefail
 
-FRACTAL_WEB_REF="v1.30.0-a2"
-
 # Absolute path to the repo root - two levels up from this script
 # (electron/scripts/../..) - so the script works regardless of which
 # directory you call it from. The Python/SvelteKit source lives there, one
 # level above the electron/ subfolder this script is part of.
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# Pinned versions (FRACTAL_WEB_REF).
+source "$PROJECT_ROOT/electron/versions.env"
 # vite.config.js is temporarily patched before the build (see below).
 VITE_CONFIG="$PROJECT_ROOT/src/frontend/vite.config.js"
 
@@ -31,9 +31,10 @@ VITE_CONFIG="$PROJECT_ROOT/src/frontend/vite.config.js"
 # that repo (fractal-web-clone/). Vite's compiler then processes the .svelte
 # source files of that library together with our own frontend code.
 #
-# The pinned version tag is FRACTAL_WEB_REF above. If you need to update the
-# component library, change it there and keep the `clone-fractal-web` pixi
-# task in pyproject.toml and the comment in vite.config.js in sync. The clone
+# The pinned version tag is FRACTAL_WEB_REF in versions.env. If you need to
+# update the component library, change it there and keep the
+# `clone-fractal-web` pixi task in pyproject.toml and the comment in
+# vite.config.js in sync. The clone
 # is always deleted and re-created, so the new tag is picked up on the next run.
 
 FRACTAL_WEB_CLONE="$PROJECT_ROOT/fractal-web-clone"

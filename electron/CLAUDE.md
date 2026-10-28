@@ -186,6 +186,7 @@ fractal-app-lite/  (v3 branch)
     ├── out/                    GITIGNORED — compiled TypeScript output (electron-vite)
     ├── dist-electron/          GITIGNORED — final distributable (AppImage / dmg / exe)
     │
+    ├── versions.env            Pinned versions (pixi, fractal-web), read by scripts/ and the GitHub workflows
     ├── electron-builder.yml    Packaging config: targets, extra resources, app metadata
     └── package.json            npm scripts and dev dependencies (Electron, TypeScript, vite)
 ```
@@ -202,7 +203,7 @@ This runs `scripts/build-components.sh`, a thin wrapper that calls `scripts/buil
 
 **1a. Clone `fractal-web-clone`** (deleted and re-cloned on every run)
 
-The SvelteKit frontend imports a component library called `fractal-components`. That library lives in a separate GitHub repo (`fractal-analytics-platform/fractal-web`). The build script shallow-clones the tag pinned in `FRACTAL_WEB_REF` (currently `v1.30.0-a2`) into `fractal-web-clone/` at the repo root (`../fractal-web-clone/` from here). The vite config then aliases `fractal-components` to the source files in that clone.
+The SvelteKit frontend imports a component library called `fractal-components`. That library lives in a separate GitHub repo (`fractal-analytics-platform/fractal-web`). The build script shallow-clones the tag pinned by `FRACTAL_WEB_REF` in `versions.env` into `fractal-web-clone/` at the repo root (`../fractal-web-clone/` from here). The vite config then aliases `fractal-components` to the source files in that clone.
 
 **1b. Build the frontend**
 
