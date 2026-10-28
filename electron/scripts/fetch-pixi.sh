@@ -16,7 +16,6 @@
 #
 # The bundled pixi version is pinned below, so every build ships the same
 # pixi. Keep it in sync with the `pixi-version` used by the GitHub workflows.
-# Set PIXI_VERSION to override it (PIXI_VERSION=latest for the latest release).
 set -euo pipefail
 
 ELECTRON_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,12 +45,8 @@ case "$(uname -m)" in
 esac
 ASSET="pixi-${_arch}-${_os}.${_ext}"
 
-PIXI_VERSION="${PIXI_VERSION:-v0.83.0}"
-if [[ "$PIXI_VERSION" == "latest" ]]; then
-  BASE_URL="https://github.com/prefix-dev/pixi/releases/latest/download"
-else
-  BASE_URL="https://github.com/prefix-dev/pixi/releases/download/$PIXI_VERSION"
-fi
+PIXI_VERSION="v0.83.0"
+BASE_URL="https://github.com/prefix-dev/pixi/releases/download/$PIXI_VERSION"
 
 echo "==> Downloading pixi ($PIXI_VERSION, $ASSET)..."
 TMP_DIR=$(mktemp -d)
