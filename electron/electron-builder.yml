@@ -30,6 +30,7 @@ extraResources:
 
 mac:
   category: public.app-category.developer-tools
+  icon: build-resources/icon-mac.png
   # FIXME: remove `identity: null` once we have an Apple Developer ID
   # certificate, and enable hardenedRuntime/entitlements below plus notarization.
   # No Developer ID certificate: skip electron-builder's signing step.
@@ -42,12 +43,14 @@ mac:
     - target: dmg
 
 linux:
+  icon: build-resources/fractal_logo.png
   target:
     - target: AppImage
       arch:
         - x64
 
 win:
+  icon: build-resources/icon.ico
   target:
     - target: nsis
       arch:
