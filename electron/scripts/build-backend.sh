@@ -159,4 +159,11 @@ mkdir -p "$RESOURCES_DIR"
 rm -rf "$RESOURCES_DIR/fractal-app-lite"
 cp -r "$BUILD_DIR/dist/fractal-app-lite" "$RESOURCES_DIR/fractal-app-lite"
 echo "    -> resources/fractal-app-lite/"
+
+# ---- Bundled pixi executable ----
+#
+# Fractal tasks run in their own pixi environments. Ship pixi next to the
+# backend executable so the app works on machines without pixi installed.
+# This must come after the copy above, which recreates the directory.
+bash "$ELECTRON_ROOT/scripts/fetch-pixi.sh"
 # The trap fires on exit, deleting BUILD_DIR and any stray .spec files.
