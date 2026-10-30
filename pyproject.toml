@@ -4,7 +4,6 @@ dependencies = [
     "pydantic",
     "fastapi",
     "uvicorn[standard]",
-    "pywebview",
     "ngio",
     "polars",
     "certifi",
@@ -18,10 +17,13 @@ description = "FastAPI + Svelte desktop port of the Fractal Tasks Sandbox."
 dev = ["ruff", "pytest", "pytest-cov", "httpx"]
 # Pinned: these end up in the packaged Electron app (see electron/scripts/build-backend.sh).
 build = ["pyinstaller==6.22.3", "websockets==17.3"]
-
-[project.scripts]
-# Launch the native desktop window (uvicorn in a thread + pywebview).
-fractal-lite-app = "backend.shell:main"
+# Optional native desktop window (backend/shell.py), for running everything locally
+# without Electron. Not needed by the packaged Electron app.
+# On Linux, pywebview also needs Qt to draw the window.
+gui = [
+    "pywebview; sys_platform != 'linux'",
+    "pywebview[qt]; sys_platform == 'linux'",
+]
 
 [build-system]
 build-backend = "hatchling.build"
@@ -64,12 +66,11 @@ fractal_lite = { path = ".", editable = true }
 default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 build = { features = ["build"], solve-group = "default" }
+gui = { features = ["gui"], solve-group = "default" }
 
 [tool.pixi.tasks]
 # Run the API server alone (serves the built frontend if present).
 serve = "uvicorn backend.main:app --host 127.0.0.1 --port 8765"
-# Launch the native desktop app.
-app = "python -m backend.shell"
 # Clone fractal-web at the pinned tag into the repo root (idempotent).
 clone-fractal-web = { cmd = "git clone --branch v1.30.0-a2 --depth 1 https://github.com/fractal-analytics-platform/fractal-web.git fractal-web-clone || echo 'fractal-web-clone already exists, skipping'" }
 # Install JS deps and build the static SvelteKit app.
@@ -79,13 +80,18 @@ build-frontend = { cmd = "npm install && npm run build", cwd = "src/frontend" }
 test = "pytest"
 test-fast = "pytest -m 'not e2e'"
 lint = "ruff check ."
-[tool.pixi.feature.build.tasks]
-build-executable = "LD_LIBRARY_PATH=.pixi/envs/default/lib pyinstaller --onefile src/backend/shell.py --noconfirm --clean --name fractal --add-data src/frontend/build:frontend/build --exclude-module PyQt6.Qt3D --exclude-module PyQt6.QtMultimedia --paths .pixi/envs/default/lib/"
+
+[tool.pixi.feature.gui.tasks]
+# Launch the native desktop app (pywebview window instead of Electron).
+app = "python -m backend.shell"
+
+# On Linux, use the Qt backend directly (pywebview would try GTK first, which is not
+# installed) and render without the GPU: Qt WebEngine's GPU compositing shows a blank
+# window on some setups (e.g. Wayland: "Backend texture is not a Vulkan texture").
+[tool.pixi.feature.gui.target.linux-64.tasks]
+app = { cmd = "python -m backend.shell", env = { PYWEBVIEW_GUI = "qt", QTWEBENGINE_CHROMIUM_FLAGS = "--disable-gpu" } }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["e2e: slow end-to-end tests that build task pixi environments"]
 
-
-[tool.pixi.target.linux-64.pypi-dependencies]
-pywebview = { extras = ["qt"] }

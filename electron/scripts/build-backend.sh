@@ -111,10 +111,6 @@ fi
 # time, so their dist-info metadata must be bundled too (--collect-all copies
 # it). Without it the backend crashes with PackageNotFoundError on startup.
 #
-# --exclude-module drops packages from the original pywebview-based entry
-# point. They are declared as optional dependencies so PyInstaller's analysis
-# would pull them in; excluding them keeps the bundle smaller.
-#
 # --paths adds src/ to the Python path so that "from backend.main import app"
 # in our entry point resolves correctly.
 #
@@ -146,9 +142,6 @@ pixi run --locked --manifest-path "$PROJECT_ROOT/pyproject.toml" -e build \
   --collect-all polars \
   --collect-all zarr \
   --collect-all numcodecs \
-  --exclude-module webview \
-  --exclude-module PyQt6 \
-  --exclude-module PyQt5 \
   --paths "$PROJECT_ROOT/src" \
   "${PYINSTALLER_ARCH_ARGS[@]}" \
   "$BUILD_DIR/_electron_entry.py"
