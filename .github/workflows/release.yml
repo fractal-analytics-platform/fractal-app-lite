@@ -206,7 +206,24 @@ jobs:
           echo "App bundle: $APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign --display --verbose=2 "$APP"
+          # Check that the app is notarized and that the proof is inside it.
+          # Notarization means we sent the app to Apple, Apple scanned it for
+          # malware, and Apple gave back a "ticket" saying it looks safe.
+          # "Stapling" means that ticket is attached to the app itself.
+          # Without a stapled ticket, macOS has to ask Apple's servers
+          # online the first time the app is opened; if the user is offline,
+          # macOS may refuse to open it. This command fails if the ticket
+          # is missing or does not match the app.
           xcrun stapler validate "$APP"
+          # Ask Gatekeeper (the macOS feature that decides whether an app
+          # may run) what it would do if a user opened this app.
+          # It checks that the app is signed with a valid "Developer ID"
+          # certificate and that it is notarized. This is the same check
+          # macOS runs when someone double-clicks an app downloaded from
+          # the internet. If it fails, users would see a warning such as
+          # "app is damaged" or "cannot be opened". "--type execute" means
+          # we are asking about running the app (not installing a package),
+          # and "--verbose=2" prints extra details, e.g. who signed the app.
           spctl --assess --type execute --verbose=2 "$APP"
 
       # electron-builder's artifactName template (${os}-${arch}) can't tell
