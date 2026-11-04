@@ -62,10 +62,16 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Read pinned versions
+        id: versions
+        shell: bash
+        # KEY=value lines (PIXI_VERSION, FRACTAL_WEB_REF), exposed as step outputs.
+        run: grep -E '^[A-Z_]+=' versions.env >> "$GITHUB_OUTPUT"
+
       - uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
         with:
           # Python and all backend packages come from this locked environment.
-          pixi-version: v0.83.0
+          pixi-version: ${{ steps.versions.outputs.PIXI_VERSION }}
           environments: build
           locked: true
 

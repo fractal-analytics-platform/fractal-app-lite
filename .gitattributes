@@ -1,2 +1,9 @@
 # GitHub syntax highlighting
 pixi.lock linguist-language=YAML linguist-generated=true -diff
+
+# Always check out versions.env with Unix line endings (LF), also on Windows.
+# On Windows, git may convert line endings to Windows ones (CRLF), which add
+# an invisible "\r" at the end of each line. The build scripts and GitHub
+# workflows read the values from this file, so they would get e.g.
+# "v0.83.0\r" instead of "v0.83.0", and the Windows build would fail.
+electron/versions.env text eol=lf

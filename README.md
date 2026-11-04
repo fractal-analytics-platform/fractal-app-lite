@@ -191,6 +191,14 @@ The Python backend can still be run standalone (without Electron) via pixi, e.g.
 pixi run serve   # runs uvicorn directly, serving the built frontend if present
 ```
 
+To open the app in its own desktop window (via pywebview) instead of a browser:
+
+```bash
+pixi run app
+```
+
+The `app` task lives in the optional `gui` environment, and pixi picks that environment automatically, so there is no need to add `-e gui`. The first run takes a while, because pixi installs pywebview (plus Qt on Linux). The Electron app does not use any of this.
+
 ### Tests
 
 Run these from the repo root (not `electron/`):

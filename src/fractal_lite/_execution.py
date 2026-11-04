@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -17,12 +18,23 @@ OnOutput = Callable[[str], None]
 def pixi_executable() -> str:
     """Return the path to the ``pixi`` executable.
 
-    Falls back to pixi's default install dir (``$PIXI_HOME/bin``, else
-    ``~/.pixi/bin``) when ``pixi`` isn't on ``PATH``: apps launched from the
-    macOS Finder get a minimal ``PATH`` without the entries added by shell
-    profiles. Returns plain ``"pixi"`` if it can't be found anywhere, so the
-    caller's ``FileNotFoundError`` still names it.
+    In the packaged (PyInstaller) app, always use the pixi executable bundled
+    next to the app executable (placed there by
+    ``electron/scripts/fetch-pixi.sh``), so the app never depends on a pixi
+    installed on the user's machine.
+
+    When running from source (dev mode, tests) there is no bundled pixi, so use
+    ``pixi`` from ``PATH``, falling back to pixi's default install dir
+    (``$PIXI_HOME/bin``, else ``~/.pixi/bin``). Returns plain ``"pixi"`` if it
+    can't be found anywhere, so the caller's ``FileNotFoundError`` still names
+    it.
     """
+
+    if getattr(sys, "frozen", False): # True in the packaged (PyInstaller) app
+        return str(
+            Path(sys.executable).parent
+            / ("pixi.exe" if sys.platform == "win32" else "pixi")
+        )
     found = shutil.which("pixi")
     if found:
         return found

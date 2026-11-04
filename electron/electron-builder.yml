@@ -38,16 +38,19 @@ mac:
   hardenedRuntime: true
   entitlements: build-resources/entitlements.mac.plist
   entitlementsInherit: build-resources/entitlements.mac.plist
+  icon: build-resources/icon-mac.png
   target:
     - target: dmg
 
 linux:
+  icon: build-resources/fractal_logo.png
   target:
     - target: AppImage
       arch:
         - x64
 
 win:
+  icon: build-resources/icon.ico
   target:
     - target: nsis
       arch:
