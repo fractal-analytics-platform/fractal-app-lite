@@ -30,7 +30,6 @@ extraResources:
 
 # macOS signing uses CSC_LINK / CSC_KEY_PASSWORD, notarization uses
 # APPLE_API_KEY / APPLE_API_KEY_ID / APPLE_API_ISSUER (set by release.yml).
-# Without them, scripts/after-pack.js ad-hoc signs the app instead.
 mac:
   category: public.app-category.developer-tools
   # Hardened runtime is required for notarization; the entitlements relax it
