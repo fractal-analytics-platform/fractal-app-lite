@@ -181,6 +181,7 @@ fractal-app-lite/  (v3 branch)
     │   ├── build-backend.sh    Builds the PyInstaller binary (frontend baked in), then runs fetch-pixi.sh
     │   ├── fetch-pixi.sh       Downloads pixi next to the backend executable
     │   ├── build-components.sh Thin wrapper: runs build-frontend.sh then build-backend.sh
+    │   ├── package-release.sh  Release packaging (release.yml): macOS signing/notarization setup + electron-builder with retries
     │   └── after-pack.js       Post-packaging hook: wraps the Linux binary with --no-sandbox
     │
     ├── out/                    GITIGNORED — compiled TypeScript output (electron-vite)
