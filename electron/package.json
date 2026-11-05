@@ -20,8 +20,8 @@
     "full-build": "npm run build-components && npm run package"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "electron": "^45.0.0",
+    "@types/node": "^26.6.6",
+    "electron": "^45.1.0",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "typescript": "^5.4.0"
