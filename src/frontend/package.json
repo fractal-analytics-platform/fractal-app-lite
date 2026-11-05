@@ -20,13 +20,13 @@
     "color-hash": "^2.0.2",
     "dompurify": "^3.4.17",
     "marked": "^7.0.5",
-    "slim-select": "^4.6.1"
+    "slim-select": "^4.6.2"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^4.0.0",
     "@sveltejs/kit": "^3.1.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "svelte": "^5.57.2",
+    "svelte": "^5.57.3",
     "svelte-check": "^4.7.7",
     "typescript": "^6.0.3",
     "vite": "^8.3.5"
