@@ -49,6 +49,7 @@ jobs:
     defaults:
       run:
         working-directory: electron
+    environment: apple-developer
     strategy:
       fail-fast: false
       matrix:
@@ -140,38 +141,22 @@ jobs:
         if: runner.os == 'macOS'
         run: sudo mdutil -a -i off
 
-      # Pass explicit --platform --arch flags so electron-builder ignores the arch
-      # arrays in electron-builder.yml and only builds what this runner can produce.
-      # PyInstaller binaries are platform-specific, so cross-compiling is not possible.
-      # --publish never: with GH_TOKEN set on a tag build, electron-builder would
-      # otherwise auto-publish its artifacts (incl. blockmaps and latest*.yml) to
-      # the GitHub Release, bypassing the filtered upload step below.
-      # Retried a few times: even with Spotlight off, the DMG step can still
-      # hit the same transient hdiutil race on a loaded runner.
+      # Packaging, macOS signing/notarization and retries are explained in
+      # electron/scripts/package-release.sh.
       - name: Package with electron-builder
         shell: bash
-        run: |
-          n=0
-          until npx electron-builder ${{ matrix.eb_flags }} --publish never; do
-            n=$((n + 1))
-            if [ "$n" -ge 3 ]; then
-              echo "electron-builder failed after $n attempts"
-              exit 1
-            fi
-            echo "electron-builder failed (attempt $n/3) — force-detaching any stuck disk images, retrying in 10s..."
-            if [ "$(uname -s)" = "Darwin" ]; then
-              hdiutil info | awk '/^\/dev\/disk/ {print $1}' | xargs -I{} hdiutil detach -force {} 2>/dev/null || true
-            fi
-            sleep 10
-          done
+        run: bash scripts/package-release.sh ${{ matrix.eb_flags }}
         env:
           # Authenticates electron-builder's GitHub downloads (Electron binary, etc.)
           # without hitting anonymous rate limits.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_API_KEY_P8: ${{ secrets.MACOS_NOTARY_API_KEY_P8 }}
+          MACOS_NOTARY_API_KEY_ID: ${{ secrets.MACOS_NOTARY_API_KEY_ID }}
+          MACOS_NOTARY_API_ISSUER_ID: ${{ secrets.MACOS_NOTARY_API_ISSUER_ID }}
 
-      # Apple Silicon refuses to run (and Gatekeeper reports as malware) an app
-      # whose signature doesn't match its contents, so fail the build if the
-      # ad-hoc signature from scripts/after-pack.js isn't valid.
+      # Check the app is signed, notarized and accepted by Gatekeeper.
       - name: Verify code signature (macOS only)
         if: runner.os == 'macOS'
         shell: bash
@@ -180,6 +165,25 @@ jobs:
           echo "App bundle: $APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign --display --verbose=2 "$APP"
+          # Check that the app is notarized and that the proof is inside it.
+          # Notarization means we sent the app to Apple, Apple scanned it for
+          # malware, and Apple gave back a "ticket" saying it looks safe.
+          # "Stapling" means that ticket is attached to the app itself.
+          # Without a stapled ticket, macOS has to ask Apple's servers
+          # online the first time the app is opened; if the user is offline,
+          # macOS may refuse to open it. This command fails if the ticket
+          # is missing or does not match the app.
+          xcrun stapler validate "$APP"
+          # Ask Gatekeeper (the macOS feature that decides whether an app
+          # may run) what it would do if a user opened this app.
+          # It checks that the app is signed with a valid "Developer ID"
+          # certificate and that it is notarized. This is the same check
+          # macOS runs when someone double-clicks an app downloaded from
+          # the internet. If it fails, users would see a warning such as
+          # "app is damaged" or "cannot be opened". "--type execute" means
+          # we are asking about running the app (not installing a package),
+          # and "--verbose=2" prints extra details, e.g. who signed the app.
+          spctl --assess --type execute --verbose=2 "$APP"
 
       # electron-builder's artifactName template (${os}-${arch}) can't tell
       # macos-15-intel and macos-26-intel apart — both build "mac-x64" and
